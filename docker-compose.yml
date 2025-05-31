@@ -1,3 +1,5 @@
+version: "3.9"
+
 services:
   db:
     container_name: db
@@ -31,6 +33,21 @@ services:
       - ./files:/files
     ports:
       - 5050:5050
+    networks:
+      - db
+
+  query-service:
+    container_name: intent-to-query
+    build:
+      context: ./intent-to-query
+      dockerfile: Dockerfile
+    environment:
+      POSTGRES_URI: ${POSTGRES_URI}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    ports:
+      - 8070:8070
+    depends_on:
+      - db
     networks:
       - db
 
