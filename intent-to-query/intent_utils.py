@@ -114,3 +114,4 @@ def pprint_sql(q):
     console = Console()
     syntax = Syntax(formatted_sql, "sql", theme="monokai", line_numbers=True)
     console.print(syntax)
+    

@@ -1,3 +1,4 @@
+import logging
 import json
 import markdown
 import pandas as pd
@@ -140,23 +141,38 @@ Reference the figures by their figure numbers when discussing insights from the 
 Include specific metrics, trends, and actionable insights.
 """
 
-        MAX_CHARS = 128_000 * 4
+        logging.info("original len: " + str(len(input_text)))
+        MAX_CHARS = 100000 * 3  # Approx 400,000 characters (~128K token context)
 
         image_blobs, temp_files = self._download_images_as_bytes(image_urls)
 
-        # Combine all content
-        text_payload = {"type": "text", "text": input_text}
-        message_content = [text_payload] + image_blobs
+        # Prepare image part size
+        serialized_image_blobs = [json.dumps(blob) for blob in image_blobs]
+        image_blobs_size = sum(len(blob) for blob in serialized_image_blobs)
 
-        # Estimate total size
-        total_size = sum(len(json.dumps(part)) for part in message_content)
+        # Estimate max text size allowed
+        max_text_size = MAX_CHARS - image_blobs_size
 
-        # If message is too large, truncate text input (but keep images)
-        if total_size > MAX_CHARS:
-            allowed_text_len = MAX_CHARS - sum(len(json.dumps(blob)) for blob in image_blobs)
-            truncated_text = input_text[:allowed_text_len]
-            message_content = [{"type": "text", "text": truncated_text}] + image_blobs
+        # Truncate input text so that combined JSON fits in MAX_CHARS
+        truncated_text = input_text
+        while True:
+            text_payload = {"type": "text", "text": truncated_text}
+            serialized_text = json.dumps(text_payload)
+            total_size = len(serialized_text) + image_blobs_size
 
+            if total_size <= MAX_CHARS:
+                break
+
+            # Reduce text length by 10% iteratively if still too long
+            truncated_text = truncated_text[:int(len(truncated_text) * 0.9)]
+        
+        logging.info("After truncaiton len: " + str(len(truncated_text)))
+        
+        # logging.info("image blobs:" + str(len(image_blobs)))
+        # logging.info(type(image_blobs))
+
+        # Final payload to LLM
+        message_content = [{"type": "text", "text": truncated_text}] #+ image_blobs
         message = HumanMessage(content=message_content)
 
         try:
