@@ -1,22 +1,33 @@
-# KHWARIZMI
+# **KHWARIZMI**
 
-## Overview
+## **Project Architecture**
+![project_architecture](docs/architecture-diagram-khwarizmi.png)
+
+---
+
+## **Overview**
 KHWARIZMI: From Thought to Vision. Our system transforms your natural language prompts into comprehensive reports with data visualizations, SQL queries, and textual explanations - turning your analytical thoughts into visual insights.
 
-## Agents
+---
+
+## **Agents**
 1. **Reformulate Intent Agent** - Refines user queries
 2. **Intent to Query Agent** - Generates SQL from natural language
 3. **Query to Plots Agent** - Creates visualizations from query results
 4. **API to Report Agent** - Assembles the final HTML report
 
-## Tech Stack
+---
+
+## **Tech Stack**
 - FastAPI microservices
 - PostgreSQL database
 - Docker containers
 - MinIO for chart storage
 - LangChain and OpenAI
 
-## Setup
+---
+
+## **Setup**
 
 ### Prerequisites
 
@@ -43,6 +54,7 @@ For development:
 ```bash
 pip install -r requirements.txt
 ```
+---
 
 ## Usage
 
@@ -56,14 +68,17 @@ curl -X POST http://localhost:8074/pipeline \
   -H "Content-Type: application/json" \
   -d '{"intent": "Show me the top 10 best-selling products", "model": "gpt-4o-mini"}'
 ```
+---
 
-## Example Queries
+## **Example Queries**
 
 - "Top 10 best-selling products by quantity sold"
 - "Total sales by customer for top 10 customers"
 - "Monthly sales trends from 1996 to 1998"
 - "Employees with most orders and their sales volume"
 
-## Acknowledgments
+---
+
+## **Acknowledgments**
 
 Built by Team KHWARIZMI during the Aalto AI Hackathon 2025. Special thanks to all team members and mentors for their contributions.
