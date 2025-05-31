@@ -22,7 +22,7 @@ load_dotenv()
 app = FastAPI(title="Postgres AI SQL Agent")
 
 # Read DB URI
-POSTGRES_URI = os.getenv("POSTGRES_URI")
+POSTGRES_URI = os.getenv("POSTGRES_URI", "postgresql://postgres:postgres@db:5432/northwind")
 
 # Optionally restrict to specific tables
 TABLE_SCOPE = get_table_names(POSTGRES_URI)

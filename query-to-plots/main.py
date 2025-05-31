@@ -17,7 +17,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 
 # === Load environment variables ===
 load_dotenv()
-POSTGRES_URI = os.getenv("POSTGRES_URI")
+POSTGRES_URI = os.getenv("POSTGRES_URI", "postgresql://postgres:postgres@db:5432/northwind")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # === Initialize OpenAI client ===
@@ -49,7 +49,7 @@ chart_descriptions = {
         "Line Chart – Ideal for visualizing trends or patterns over a continuous variable, usually time."
     ),
     "pie_chart": (
-        "Pie Chart – Shows proportions of a whole. Each slice represents a category’s share of the total. "
+        "Pie Chart – Shows proportions of a whole. Each slice represents a category's share of the total. "
         "Best used when comparing a small number of categories."
     ),
     "scatter_plot": (

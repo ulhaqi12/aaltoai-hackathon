@@ -3,7 +3,6 @@ import json
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 import pandas as pd
-import plotly.graph_objects as go
 import markdown
 
 class ReportGenerator:
@@ -38,16 +37,14 @@ class ReportGenerator:
             ("human", "{input}")
         ])
 
-    def _get_plot_metadata(self, plots: List[go.Figure]) -> List[Dict[str, str]]:
-        """Extract metadata from plotly figures for context."""
+    def _get_plot_metadata(self, plots: List[str]) -> List[Dict[str, str]]:
+        """Extract metadata from HTML plots for context."""
         metadata = []
         for i, plot in enumerate(plots):
             info = {
                 "figure_number": i + 1,
-                "title": plot.layout.title.text if plot.layout.title else f"Figure {i+1}",
-                "type": plot.data[0].type if plot.data else "unknown",
-                "x_axis": plot.layout.xaxis.title.text if hasattr(plot.layout, 'xaxis') and plot.layout.xaxis.title else "",
-                "y_axis": plot.layout.yaxis.title.text if hasattr(plot.layout, 'yaxis') and plot.layout.yaxis.title else ""
+                "title": f"Figure {i+1}",
+                "type": "plotly",
             }
             metadata.append(info)
         return metadata
@@ -80,8 +77,8 @@ class ReportGenerator:
         self,
         original_query: str,
         sql_results: pd.DataFrame,
-        plots: List[go.Figure]
-    ) -> Tuple[str, List[go.Figure]]:
+        plots: List[str]
+    ) -> Tuple[str, List[str]]:
         """Generate a comprehensive report based on the query, data, and plots.
         Returns both the markdown report text and the list of plots to be rendered."""
         
@@ -112,7 +109,7 @@ Include specific metrics, trends, and actionable insights.
         
         return report.content, plots
 
-    def save_report(self, report_content: str, plots: List[go.Figure], output_path: str):
+    def save_report(self, report_content: str, plots: List[str], output_path: str):
         """Save the generated report to an HTML file including both text and interactive plots."""
         
         # Convert markdown to HTML
@@ -211,15 +208,13 @@ Include specific metrics, trends, and actionable insights.
         """
         
         # Add each plot with figure labels
-        for i, plot in enumerate(plots):
-            plot_title = plot.layout.title.text if plot.layout.title else f"Figure {i+1}"
-            div = plot.to_html(full_html=False, include_plotlyjs=False)
+        for i, plot_html in enumerate(plots):
             html_content += f'''
                 <div class="plot-container">
                     <h3 style="text-align: center; color: #2c3e50; margin-bottom: 20px;">
-                        Figure {i+1}: {plot_title}
+                        Figure {i+1}
                     </h3>
-                    {div}
+                    {plot_html}
                 </div>
             '''
         

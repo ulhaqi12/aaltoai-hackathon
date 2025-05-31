@@ -11,7 +11,7 @@ load_dotenv()
 
 # Init OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-POSTGRES_URI = os.getenv("POSTGRES_URI")
+POSTGRES_URI = os.getenv("POSTGRES_URI", "postgresql://postgres:postgres@db:5432/northwind")
 
 # Init FastAPI app
 app = FastAPI(title="Intent Reformulation API")

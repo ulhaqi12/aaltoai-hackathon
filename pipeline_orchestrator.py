@@ -2,7 +2,7 @@ import asyncio
 import aiohttp
 import os
 from dotenv import load_dotenv
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 import json
 
 load_dotenv()
@@ -14,7 +14,7 @@ class ReportPipelineOrchestrator:
         self.reformulate_url = "http://localhost:8071"
         self.intent_to_query_url = "http://localhost:8070" 
         self.api_to_report_url = "http://localhost:8073"
-        self.plot_generation="http://localhost:8072"
+        self.query_to_plots_url = "http://localhost:8072"
         
         # Database connection for api-to-report service
         self.postgres_uri = os.getenv("POSTGRES_URI")
@@ -50,15 +50,36 @@ class ReportPipelineOrchestrator:
         except Exception as e:
             print(f"Error calling intent-to-query service: {e}")
             return None
+
+    async def generate_plots(self, sql_query: str, intent: str) -> Optional[List[str]]:
+        """Call query-to-plots agent to generate visualizations"""
+        try:
+            async with aiohttp.ClientSession() as session:
+                payload = {
+                    "sql_query": sql_query,
+                    "intent": intent,
+                    "model": "gpt-4o-mini"
+                }
+                async with session.post(f"{self.query_to_plots_url}/visualize", json=payload) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        return result.get("html_plots", [])
+                    else:
+                        print(f"Plot generation error: {response.status}")
+                        return None
+        except Exception as e:
+            print(f"Error calling plot generation service: {e}")
+            return None
     
-    async def generate_report(self, original_intent: str, reformulated_intent: str, sql_query: str) -> Optional[str]:
+    async def generate_report(self, original_intent: str, reformulated_intent: str, sql_query: str, plots: List[str]) -> Optional[str]:
         """Call api-to-report service to generate final HTML report"""
         try:
             async with aiohttp.ClientSession() as session:
                 payload = {
                     "original_query": original_intent,
                     "reformulated_query": reformulated_intent,
-                    "sql_query": sql_query
+                    "sql_query": sql_query,
+                    "plots": plots
                 }
                 async with session.post(f"{self.api_to_report_url}/generate-report", json=payload) as response:
                     if response.status == 200:
@@ -73,7 +94,7 @@ class ReportPipelineOrchestrator:
             return None
     
     async def run_full_pipeline(self, user_intent: str) -> Dict[str, Any]:
-        """Run the complete pipeline: Intent -> Reformulate -> SQL -> Report"""
+        """Run the complete pipeline: Intent -> Reformulate -> SQL -> Plots -> Report"""
         print(f"🚀 Starting pipeline for: '{user_intent}'")
         
         # Step 1: Reformulate the intent
@@ -89,9 +110,16 @@ class ReportPipelineOrchestrator:
             return {"error": "Failed to generate SQL query", "step": "intent-to-query"}
         print(f"   SQL: {sql_query}")
         
-        # Step 3: Generate report
-        print("📊 Step 3: Generating report...")
-        html_report = await self.generate_report(user_intent, reformulated_intent, sql_query)
+        # Step 3: Generate plots
+        print("📊 Step 3: Generating plots...")
+        plots = await self.generate_plots(sql_query, reformulated_intent)
+        if not plots:
+            return {"error": "Failed to generate plots", "step": "query-to-plots"}
+        print(f"   Generated {len(plots)} plots")
+        
+        # Step 4: Generate report
+        print("📄 Step 4: Generating report...")
+        html_report = await self.generate_report(user_intent, reformulated_intent, sql_query, plots)
         if not html_report:
             return {"error": "Failed to generate report", "step": "api-to-report"}
         
@@ -107,6 +135,7 @@ class ReportPipelineOrchestrator:
             "original_intent": user_intent,
             "reformulated_intent": reformulated_intent,
             "sql_query": sql_query,
+            "plots_count": len(plots),
             "report_file": report_filename
         }
 
