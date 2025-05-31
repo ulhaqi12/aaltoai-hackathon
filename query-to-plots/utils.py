@@ -42,4 +42,6 @@ def area_chart(df: pd.DataFrame, x: str, y: str, title: str) -> go.Figure:
 
 def treemap(df: pd.DataFrame, path: str, values: str, title: str) -> go.Figure:
     """Creates a treemap using Plotly."""
-    return px.treemap(df, path=[path], values=values, title=title)
+    # Ensure path is a list (Plotly expects a list of column names)
+    path = [path] if isinstance(path, str) else path
+    return px.treemap(df, path=path, values=values, title=title)

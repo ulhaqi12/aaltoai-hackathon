@@ -134,6 +134,18 @@ def suggest_chart(intent: str, data_preview: list, model: str) -> dict:
             "group_by": optional_grouping_column
         }},
         {{
+            "chart_type": "treemap",
+            "path": ["category_name"],
+            "values": "product_count",
+            "title": "Treemap of Products by Category"
+        }},
+        {{
+            "chart_type": "area_chart",
+            "x": "date",
+            "y": "sales",
+            "title": "Area Chart of Sales Over Time"
+        }},
+        {{
             "chart_type": "pie_chart",
             "names": "category_name",
             "values": "product_count",
