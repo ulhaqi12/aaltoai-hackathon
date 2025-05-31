@@ -1,15 +1,10 @@
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-import requests
-import json
-from datetime import datetime, timedelta
-from sqlalchemy import create_engine, text
-from langchain_openai import ChatOpenAI
-from langchain.prompts import ChatPromptTemplate
 import os
 from dotenv import load_dotenv
 import numpy as np
+from report_generator import ReportGenerator
 
 # Load environment variables from .env file
 load_dotenv()
@@ -143,145 +138,35 @@ def create_northwind_plots(df):
     
     return [fig1, fig2, fig3]
 
-def generate_report(df, plots):
-    """Generate analysis report using OpenAI"""
-    llm = ChatOpenAI(
-        model="gpt-4o-mini",
-        temperature=0.1,
-        openai_api_key=api_key
-    )
-    
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are an expert data analyst and report writer. Analyze the provided Northwind sales data and create 
-        a comprehensive report that includes:
-        
-        1. Executive Summary
-        2. Key Findings
-           - Sales Performance and Trends
-           - Customer Behavior Analysis
-           - Order Value and Size Analysis
-        3. Detailed Analysis
-           - Weekly/Monthly Patterns
-           - Customer Engagement Metrics
-           - Revenue Growth Opportunities
-        4. Recommendations
-        
-        Use specific numbers and reference the visualizations in your analysis.
-        Format the report in markdown for better readability."""),
-        ("human", "{input}")
-    ])
-    
-    # Prepare data summary for the LLM
-    data_summary = {
-        "date_range": f"{df['order_date'].min().strftime('%Y-%m-%d')} to {df['order_date'].max().strftime('%Y-%m-%d')}",
-        "total_sales": f"${df['total_sales'].sum():,.2f}",
-        "avg_daily_sales": f"${df['total_sales'].mean():,.2f}",
-        "total_customers": int(df['unique_customers'].sum()),
-        "avg_order_value": f"${df['avg_order_value'].mean():,.2f}",
-        "total_orders": int(df['num_orders'].sum()),
-        "avg_items_per_order": f"{(df['total_items'] / df['num_orders']).mean():.1f}"
-    }
-    
-    # Generate the report
-    input_data = {
-        "input": f"""
-Please analyze this Northwind sales data and create a report:
-
-Date Range: {data_summary['date_range']}
-
-Key Metrics:
-- Total Sales: {data_summary['total_sales']}
-- Average Daily Sales: {data_summary['avg_daily_sales']}
-- Total Unique Customers: {data_summary['total_customers']}
-- Total Orders: {data_summary['total_orders']}
-- Average Order Value: {data_summary['avg_order_value']}
-- Average Items per Order: {data_summary['avg_items_per_order']}
-
-The visualizations show:
-Figure 1: Daily sales trend with 7-day moving average
-Figure 2: Daily customer activity (unique customers and number of orders)
-Figure 3: Order value and size metrics over time
-
-Please provide insights about trends, patterns, and recommendations.
-"""
-    }
-    
-    chain = prompt | llm
-    report_content = chain.invoke(input_data)
-    
-    return report_content.content
-
-def save_report(report_content, plots, output_path='northwind_report.html'):
-    """Save the report and plots as an HTML file"""
-    html_content = f"""
-    <html>
-    <head>
-        <title>Northwind Sales Analysis Report</title>
-        <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-        <style>
-            body {{
-                font-family: Arial, sans-serif;
-                line-height: 1.6;
-                max-width: 1200px;
-                margin: 0 auto;
-                padding: 20px;
-                background-color: #f5f5f5;
-            }}
-            .report-content {{
-                background-color: white;
-                padding: 30px;
-                border-radius: 8px;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            }}
-            .plot-container {{
-                margin: 30px 0;
-                background-color: white;
-                padding: 20px;
-                border-radius: 8px;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            }}
-            h1, h2, h3 {{
-                color: #2C3E50;
-            }}
-        </style>
-    </head>
-    <body>
-        <div class="report-content">
-            {report_content}
-        </div>
-    """
-    
-    # Add each plot
-    for i, plot in enumerate(plots):
-        div = plot.to_html(full_html=False, include_plotlyjs=False)
-        html_content += f'<div class="plot-container" id="plot-{i}">{div}</div>'
-    
-    html_content += """
-    </body>
-    </html>
-    """
-    
-    with open(output_path, 'w') as f:
-        f.write(html_content)
-
 def main():
+    """Generate a sample report using the ReportGenerator template"""
     try:
-        # Get data from Northwind
+        # Initialize the report generator
+        report_generator = ReportGenerator(api_key)
+        
+        # Get mock data from Northwind
         df = get_northwind_data()
         
         # Create visualizations
         plots = create_northwind_plots(df)
         
-        # Generate the report
-        report_content = generate_report(df, plots)
+        # Define the original query (simulating what would come from user intent)
+        original_query = "Show me the sales performance trends for the past year, including customer activity patterns and order value analysis"
         
-        # Save the report
+        # Generate the report using the ReportGenerator template
+        report_content, plots = report_generator.generate_report(
+            original_query=original_query,
+            sql_results=df,
+            plots=plots
+        )
+        
+        # Save the report using the ReportGenerator
         output_file = 'northwind_report.html'
-        save_report(report_content, plots, output_file)
+        report_generator.save_report(report_content, plots, output_file)
         print(f"Report generated successfully! Open {output_file} in your browser to view it.")
             
     except Exception as e:
         print(f"Error: {str(e)}")
 
 if __name__ == "__main__":
-    main() 
+    main()
