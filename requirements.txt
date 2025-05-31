@@ -8,6 +8,12 @@ langchain-community==0.3.24
 sqlparse==0.5.3
 rich==14.0.0
 langchain-openai==0.3.18
-psycopg2==2.9.10
+psycopg2-binary==2.9.10
 fastapi==0.115.12
 uvicorn==0.34.2
+langchain==0.3.25
+openai==1.82.1
+numpy==2.2.6
+python-dotenv==1.1.0
+streamlit==1.45.1
+plotly==6.1.2
