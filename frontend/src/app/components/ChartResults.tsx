@@ -17,7 +17,6 @@ export default function ChartResults() {
 
     const container = containerRef.current;
 
-
     const scripts = container.querySelectorAll("script");
 
     scripts.forEach((oldScript) => {

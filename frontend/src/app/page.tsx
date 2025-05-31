@@ -6,20 +6,26 @@ import QueryInput from "./components/QueryInput";
 
 export default function Dashboard() {
   const [charts, setCharts] = useState<string[]>([]);
+  const [report, setReport] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
 
   const handleQuerySubmit = async (query: string) => {
     setLoading(true); // Start loading
 
     try {
-      const response = await fetch("http://localhost:8074/pipeline/", {
+      const response = await fetch("http://localhost:8074/pipeline", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ intent: query, model: "gpt-4o" }),
+        body: JSON.stringify({ intent: query, model: "gpt-4o-mini" }),
       });
 
       const data = await response.json();
-      setCharts(data.html_plots || []);
+
+      console.log("FULL RESPONSE:", data);
+      console.log("PLOTS:", data.plots);
+      setCharts(data.plots || []);
+      setReport(data.html_report);
+      console.log("CHARTS STATE SET TO:", data.plots || []);
     } catch (error) {
       console.error("Failed to fetch chart:", error);
     } finally {
@@ -42,18 +48,35 @@ export default function Dashboard() {
         <div className="md:w-2/3 bg-white bg-opacity-10 rounded-md p-4">
           <h2 className="text-xl font-semibold mb-2">Reports</h2>
           {loading ? (
-            <p className="text-sm italic text-yellow-200">⏳ Generating charts...</p>
+            <p className="text-sm italic text-yellow-200">
+              ⏳ Generating charts...
+            </p>
           ) : (
-            <p className="text-sm">Results or explanations will go here.</p>
+            <iframe
+              className="w-full h-[600px] bg-white rounded-md shadow border"
+              srcDoc={report}
+              sandbox="allow-scripts allow-same-origin"
+            />
           )}
         </div>
 
         {/* Right */}
         <div className="md:w-2/3 flex flex-col gap-6">
           {loading ? (
-            <div className="text-center text-lg animate-pulse text-white">Loading...</div>
+            <div className="text-center text-lg animate-pulse text-white">
+              Loading...
+            </div>
           ) : (
-            <ChartResults htmlPlots={charts} />
+            <div className="flex flex-col gap-4">
+              {charts.map((plot, index) => (
+                <iframe
+                  key={index}
+                  className="w-full h-[400px] bg-white rounded-lg border shadow"
+                  srcDoc={plot}
+                  sandbox="allow-scripts"
+                />
+              ))}
+            </div>
           )}
         </div>
       </div>

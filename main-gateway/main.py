@@ -138,7 +138,7 @@ class ReportPipelineOrchestrator:
 # -----------------------------
 # Main API Endpoint
 # -----------------------------
-@app.post("/pipeline", response_model=PipelineResponse)
+@app.post("/pipeline/", response_model=PipelineResponse)
 async def run_pipeline(request: PipelineRequest):
     logger.info(f"Pipeline triggered with intent: {request.intent}")
     orchestrator = ReportPipelineOrchestrator()
