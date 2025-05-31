@@ -11,6 +11,7 @@ __pycache__/
 *.so
 *.html*
 .DS_Store*
+*.json*
 
 # Distribution / packaging
 .Python
