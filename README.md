@@ -1,10 +1,5 @@
 # **KHWARIZMI**
 
-## **Project Architecture**
-![project_architecture](docs/architecture-diagram-khwarizmi.png)
-
----
-
 ## **Overview**
 KHWARIZMI: From Thought to Vision. Our system transforms your natural language prompts into comprehensive reports with data visualizations, SQL queries, and textual explanations - turning your analytical thoughts into visual insights.
 
@@ -24,6 +19,11 @@ KHWARIZMI: From Thought to Vision. Our system transforms your natural language p
 - Docker containers
 - MinIO for chart storage
 - LangChain and OpenAI
+
+---
+
+## **Project Architecture**
+![project_architecture](docs/architecture-diagram-khwarizmi.png)
 
 ---
 
