@@ -7,7 +7,7 @@ import plotly.io as pio
 from sqlalchemy import create_engine
 from dotenv import load_dotenv
 from openai import OpenAI
-from utils import bar_chart, line_chart, pie_chart, scatter_plot, histogram, box_plot, heatmap
+from utils import bar_chart, line_chart, pie_chart, scatter_plot, histogram, box_plot, heatmap, treemap, area_chart
 import re
 import json
 import base64
@@ -36,16 +36,46 @@ chart_map = {
     "histogram": histogram,
     "box_plot": box_plot,
     "heatmap": heatmap,
+    "treemap": treemap,
+    "area_chart": area_chart
 }
 
 chart_descriptions = {
-    "bar_chart": "Compare values across categories",
-    "line_chart": "Show trends over time",
-    "pie_chart": "Show proportions of a whole",
-    "scatter_plot": "Show relationships between numeric variables",
-    "histogram": "Show frequency distribution of a variable",
-    "box_plot": "Show distribution with outliers",
-    "heatmap": "Show matrix relationships using color"
+    "bar_chart": (
+        "Bar Chart – Used to compare numeric values across different categories. "
+        "Best for showing totals, counts, or averages for each group."
+    ),
+    "line_chart": (
+        "Line Chart – Ideal for visualizing trends or patterns over a continuous variable, usually time."
+    ),
+    "pie_chart": (
+        "Pie Chart – Shows proportions of a whole. Each slice represents a category’s share of the total. "
+        "Best used when comparing a small number of categories."
+    ),
+    "scatter_plot": (
+        "Scatter Plot – Displays the relationship between two numeric variables. "
+        "Useful for spotting correlations, clusters, or anomalies."
+    ),
+    "histogram": (
+        "Histogram – Shows the frequency distribution of a single numeric variable. "
+        "Helps understand how values are spread or grouped."
+    ),
+    "box_plot": (
+        "Box Plot – Visualizes the distribution and variability of a numeric variable. "
+        "Highlights medians, quartiles, and outliers across categories."
+    ),
+    "heatmap": (
+        "Heatmap – Uses color to represent values in a grid. "
+        "Best for visualizing relationships between two categories and their associated values."
+    ),
+    "area_chart": (
+        "Area Chart – Similar to a line chart, but fills the area under the curve. "
+        "Effective for showing stacked or cumulative trends over time."
+    ),
+    "treemap": (
+        "Treemap – Uses nested rectangles to represent hierarchical data and relative sizes. "
+        "Useful for exploring parts of a whole with multiple levels."
+    )
 }
 
 # === Request and Response Schemas ===
@@ -55,38 +85,62 @@ class VisualizationRequest(BaseModel):
     model: Optional[str] = "gpt-4o-mini"
 
 class VisualizationResponse(BaseModel):
+    status: str  # "success", "partial", "error"
     html_plots: List[str]
     image_base64s: Optional[List[str]] = None
+    error_message: Optional[str] = None
 
 
 def suggest_chart(intent: str, data_preview: list, model: str) -> dict:
     prompt = f"""
-    You are a data visualization expert.
+        You are a skilled data visualization assistant.
 
-    Based on the following:
-    - User Intent: "{intent}"
-    - Data preview: {data_preview}
-    - Available chart types: {chart_descriptions}
+        Your task is to analyze a given user intent and a preview of query result data, and then suggest the most relevant chart configurations. These charts will be rendered using Plotly in a dashboard.
 
-    Suggest the best chart types and fields to use.
-    Respond with a list of chart configurations in the following JSON format:
+        You are provided with:
+        - A user intent describing what the person wants to see
+        - A sample of the SQL query result data (first 5 rows)
+        - A list of supported chart types and their purposes
 
-    [
+        Your job:
+        - Suggest the 2 to 3 most appropriate chart configurations
+        - Use only the available chart types listed below
+        - Use the actual column names from the data preview
+        - Include an appropriate chart title for each chart
+        - If a grouping column is relevant (e.g., for color), include it
+        - Respond **only** in valid JSON (no markdown, no comments, no extra text)
+
+        ---
+
+        User Intent:
+        "{intent}"
+
+        Data Preview:
+        {data_preview}
+
+        Supported Chart Types:
+        {chart_descriptions}
+
+        ---
+
+        Respond with a JSON list like this:
+
+        [
         {{
             "chart_type": "bar_chart",
             "x": "category_name",
             "y": "product_count",
             "title": "Bar Chart of Products by Category",
-            "group_by": "optional_grouping_column"
+            "group_by": optional_grouping_column
         }},
         {{
             "chart_type": "pie_chart",
             "names": "category_name",
             "values": "product_count",
             "title": "Pie Chart of Products by Category",
-            "group_by": "optional_grouping_column"
+            "group_by": optional_grouping_column
         }}
-    ]
+        ]
     """
 
     response = client.chat.completions.create(
@@ -107,51 +161,70 @@ def suggest_chart(intent: str, data_preview: list, model: str) -> dict:
 # === FastAPI Endpoint ===
 @app.post("/visualize", response_model=VisualizationResponse)
 def visualize_query(request: VisualizationRequest):
-    engine = create_engine(POSTGRES_URI)
-    df = pd.read_sql(request.sql_query, con=engine)
+    try:
+        engine = create_engine(POSTGRES_URI)
+        df = pd.read_sql(request.sql_query, con=engine)
+    except Exception as e:
+        return VisualizationResponse(
+            status="error",
+            html_plots=["<p>Failed to execute SQL query.</p>"],
+            error_message=str(e)
+        )
 
     if df.empty:
-        return VisualizationResponse(html_plot="<p>No data returned from SQL query.</p>")
+        return VisualizationResponse(
+            status="error",
+            html_plots=["<p>No data returned from SQL query.</p>"],
+            error_message="No Data returned from SQL query."
+        )
 
     preview_data = df.head(5).to_dict(orient="records")
-    chart_infos = suggest_chart(request.intent, preview_data, model=request.model)
+
+    try:
+        chart_infos = suggest_chart(request.intent, preview_data, model=request.model)
+    except Exception as e:
+        return VisualizationResponse(
+            status="error",
+            html_plots=["<p>Chart suggestion failed.</p>"],
+            error_message=str(e)
+        )
 
     html_plots = []
     image_base64s = []
 
-    for chart_info in chart_infos:  # LLM returns a list of chart configs
+    for chart_info in chart_infos:
         chart_type = chart_info.get("chart_type")
         title = chart_info.get("title", "Generated Chart")
 
-        # Validate chart type
         if chart_type not in chart_map:
             continue
 
-        # Prepare args: exclude known non-args like chart_type and title
         kwargs = {
             k: v for k, v in chart_info.items()
             if k not in ("chart_type", "title") and v is not None
         }
 
-        # Dynamically call plotting function
         try:
             fig = chart_map[chart_type](df, title=title, **kwargs)
-        except Exception as e:
-            print(f"Failed to render chart {chart_type}: {e}")
-            continue
+            html = pio.to_html(fig, full_html=False)
+            html_plots.append(html)
 
-        html = pio.to_html(fig, full_html=False)
-        html_plots.append(html)
-
-        try:
             image_bytes = fig.to_image(format="png", engine="kaleido")
             image_base64s.append(base64.b64encode(image_bytes).decode("utf-8"))
         except Exception as e:
-            print(f"Failed to generate image: {e}")
+            html_plots.append(f"<p>Failed to render {chart_type}: {str(e)}</p>")
             image_base64s.append("")
 
-    
+    if not html_plots:
+        return VisualizationResponse(
+            status="error",
+            html_plots=["<p>No charts could be generated from the input.</p>"],
+            error_message="All suggested charts failed to render."
+        )
+
+    status = "partial" if any("Failed to render" in html for html in html_plots) else "success"
     return VisualizationResponse(
-        html_plots=html_plots, 
-        image_base64s=image_base64s
+        status=status,
+        html_plots=html_plots,
+        image_base64s=image_base64s,
     )

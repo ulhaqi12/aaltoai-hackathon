@@ -35,3 +35,11 @@ def heatmap(df: pd.DataFrame, x: str, y: str, z: str, title: str) -> go.Figure:
         y=pivot_table.index,
         colorscale='Viridis'
     )).update_layout(title=title)
+
+def area_chart(df: pd.DataFrame, x: str, y: str, title: str) -> go.Figure:
+    """Creates an area chart using Plotly."""
+    return px.area(df, x=x, y=y, title=title)
+
+def treemap(df: pd.DataFrame, path: str, values: str, title: str) -> go.Figure:
+    """Creates a treemap using Plotly."""
+    return px.treemap(df, path=[path], values=values, title=title)
