@@ -11,6 +11,10 @@ from pydantic import BaseModel
 # Load environment variables
 load_dotenv()
 
+
+from fastapi.middleware.cors import CORSMiddleware
+
+
 # -----------------------------
 # Configure Logging
 # -----------------------------
@@ -25,7 +29,13 @@ logger = logging.getLogger("main-gateway")
 # -----------------------------
 app = FastAPI(title="Report Generation Pipeline API")
 
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Or ["http://localhost:3000"] for stricter security
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 class PipelineRequest(BaseModel):
     intent: str
     model: str

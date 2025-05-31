@@ -7,6 +7,7 @@ url = "http://localhost:8074/pipeline"
 
 # List of 20 intent queries
 intents = [
+    "top products",
     "What are the total sales amounts by customer for our top 10 customers?",
     "Which products have the highest total sales volume?",
     "Show total sales by country.",
@@ -34,7 +35,7 @@ for idx, intent in enumerate(intents, 1):
     print(f"▶️ Sending intent {idx}: {intent}")
     payload = {
         "intent": intent,
-        "model": "gpt-4o-mini"
+        "model": "gpt-4o"
     }
 
     response = requests.post(url, json=payload)
@@ -54,3 +55,4 @@ for idx, intent in enumerate(intents, 1):
     else:
         print(f"❌ Request {idx} failed with status {response.status_code}")
         print(response.text)
+    break

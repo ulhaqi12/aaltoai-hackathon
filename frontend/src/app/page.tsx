@@ -6,20 +6,24 @@ import QueryInput from "./components/QueryInput";
 
 export default function Dashboard() {
   const [charts, setCharts] = useState<string[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
 
   const handleQuerySubmit = async (query: string) => {
+    setLoading(true); // Start loading
+
     try {
-      const response = await fetch("http://localhost:8000/query", {
-        // change URL to your actual backend endpoint
+      const response = await fetch("http://localhost:8074/pipeline/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ intent: query, model: "gpt-4o" }),
       });
 
       const data = await response.json();
       setCharts(data.html_plots || []);
     } catch (error) {
       console.error("Failed to fetch chart:", error);
+    } finally {
+      setLoading(false); // Stop loading after fetch
     }
   };
 
@@ -37,12 +41,20 @@ export default function Dashboard() {
         {/* Left */}
         <div className="md:w-2/3 bg-white bg-opacity-10 rounded-md p-4">
           <h2 className="text-xl font-semibold mb-2">Reports</h2>
-          <p className="text-sm">Results or explanations will go here.</p>
+          {loading ? (
+            <p className="text-sm italic text-yellow-200">⏳ Generating charts...</p>
+          ) : (
+            <p className="text-sm">Results or explanations will go here.</p>
+          )}
         </div>
 
         {/* Right */}
         <div className="md:w-2/3 flex flex-col gap-6">
-          <ChartResults htmlPlots={charts} />
+          {loading ? (
+            <div className="text-center text-lg animate-pulse text-white">Loading...</div>
+          ) : (
+            <ChartResults htmlPlots={charts} />
+          )}
         </div>
       </div>
     </div>
