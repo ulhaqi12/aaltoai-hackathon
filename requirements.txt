@@ -4,9 +4,10 @@ jupyter==1.0.0
 matplotlib==3.8.4
 seaborn==0.13.2
 notebook==7.1.2
-langchain-community==0.3.24
+langchain-community==0.0.27
 sqlparse==0.5.3
 rich==14.0.0
+<<<<<<< HEAD
 langchain-openai==0.3.18
 psycopg2-binary==2.9.10
 fastapi==0.115.12
@@ -17,3 +18,13 @@ numpy==2.2.6
 python-dotenv==1.1.0
 streamlit==1.45.1
 plotly==6.1.2
+=======
+langchain-openai==0.0.8
+psycopg2-binary==2.9.9
+fastapi==0.109.2
+uvicorn==0.27.1
+plotly==5.19.0
+python-dotenv==1.0.1
+pydantic>=2.7.4
+langchain==0.1.9
+>>>>>>> 0f18bf8 (Initial report creation)
