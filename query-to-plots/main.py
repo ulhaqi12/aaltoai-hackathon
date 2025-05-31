@@ -85,7 +85,7 @@ class VisualizationRequest(BaseModel):
     model: Optional[str] = "gpt-4o-mini"
 
 class VisualizationResponse(BaseModel):
-    status: str  # "success", "partial", "error"
+    status: str  # "success", "error"
     html_plots: List[str]
     image_urls: Optional[List[str]] = None
     error_message: Optional[str] = None
@@ -103,9 +103,12 @@ def suggest_chart(intent: str, data_preview: list, model: str) -> dict:
         - A list of supported chart types and their purposes
 
         Your job:
-        - Suggest the 2 to 3 most appropriate chart configurations
+        - Suggest the 4 to 5 most appropriate chart configurations
         - Use only the available chart types listed below
-        - Use the actual column names from the data preview
+        - Use the actual column names and data types from the data preview
+        - Only suggest charts that are logically valid and meaningful for the given data
+        - DO NOT hallucinate chart types, column names, or configurations that are not present in the data
+        - DO NOT include charts if the required columns are not available
         - Include an appropriate chart title for each chart
         - If a grouping column is relevant (e.g., for color), include it
         - Respond **only** in valid JSON (no markdown, no comments, no extra text)
@@ -227,8 +230,8 @@ def visualize_query(request: VisualizationRequest):
             image_urls.append(image_url)
 
         except Exception as e:
-            html_plots.append(f"<p>Failed to render {chart_type}: {str(e)}</p>")
-            image_urls.append("")
+            print(f"Failed to render {chart_type}: {str(e)}")
+            continue
 
     if not html_plots:
         return VisualizationResponse(
@@ -237,10 +240,8 @@ def visualize_query(request: VisualizationRequest):
             error_message="All suggested charts failed to render."
         )
 
-    status = "partial" if any(html.startswith("<p>Failed to render") for html in html_plots) else "success"
-
     return VisualizationResponse(
-        status=status,
+        status="success",
         html_plots=html_plots,
         image_urls=image_urls,
     )

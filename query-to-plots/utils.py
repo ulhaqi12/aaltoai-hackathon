@@ -6,25 +6,29 @@ from botocore.client import Config
 import uuid
 import os
 
-def bar_chart(df: pd.DataFrame, x: str, y: str, title: str) -> go.Figure:
+def bar_chart(df: pd.DataFrame, x: str, y: str, title: str, **kwargs) -> go.Figure:
     """Creates a bar chart using Plotly."""
-    return px.bar(df, x=x, y=y, title=title)
+    color = kwargs.get("group_by")
+    return px.bar(df, x=x, y=y, title=title, color=color)
 
-def line_chart(df: pd.DataFrame, x: str, y: str, title: str) -> go.Figure:
+def line_chart(df: pd.DataFrame, x: str, y: str, title: str, **kwargs) -> go.Figure:
     """Creates a line chart using Plotly."""
-    return px.line(df, x=x, y=y, title=title)
+    color = kwargs.get("group_by")
+    return px.line(df, x=x, y=y, title=title, color=color)
 
 def pie_chart(df: pd.DataFrame, names: str, values: str, title: str) -> go.Figure:
     """Creates a pie chart using Plotly."""
     return px.pie(df, names=names, values=values, title=title)
 
-def scatter_plot(df: pd.DataFrame, x: str, y: str, title: str) -> go.Figure:
+def scatter_plot(df: pd.DataFrame, x: str, y: str, title: str, **kwargs) -> go.Figure:
     """Creates a scatter plot using Plotly."""
-    return px.scatter(df, x=x, y=y, title=title)
+    color = kwargs.get("group_by")
+    return px.scatter(df, x=x, y=y, title=title, color=color)
 
-def histogram(df: pd.DataFrame, x: str, title: str) -> go.Figure:
+def histogram(df: pd.DataFrame, x: str, title: str, **kwargs) -> go.Figure:
     """Creates a histogram using Plotly."""
-    return px.histogram(df, x=x, title=title)
+    color = kwargs.get("group_by")
+    return px.histogram(df, x=x, title=title, color=color)
 
 def box_plot(df: pd.DataFrame, y: str, x: str = None, title: str = "") -> go.Figure:
     """Creates a box plot using Plotly."""
