@@ -9,21 +9,13 @@ services:
     volumes:
       - postgresql_bin:/usr/lib/postgresql
       - postgresql_data:/var/lib/postgresql/data
-      - ./db/northwind.sql:/docker-entrypoint-initdb.d/northwind.sql
+      # - ./db-northdwind/northwind.sql:/docker-entrypoint-initdb.d/northwind.sql
+      - ./db-music/Chinook_PostgreSql.sql:/docker-entrypoint-initdb.d/music.sql
       - ./files:/files
     ports:
       - 5432:5432
     networks:
       - db
-
-  postgres2:
-    image: postgres:17.5-alpine
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: netflixdb
-    ports:
-      - "5432:5432"
 
   pgadmin:
     container_name: pgadmin
