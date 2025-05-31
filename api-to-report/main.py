@@ -31,6 +31,8 @@ def execute_sql_query(sql_query: str) -> pd.DataFrame:
     """Execute SQL query against PostgreSQL database"""
     try:
         postgres_uri = os.getenv("POSTGRES_URI")
+        print(postgres_uri)
+
         if not postgres_uri:
             raise ValueError("POSTGRES_URI not found in environment variables")
         
@@ -178,8 +180,8 @@ async def health_check():
     return {
         "status": "healthy", 
         "service": "api-to-report",
-        "database_configured": bool(os.getenv("POSTGRES_URI")),
-        "openai_configured": bool(os.getenv("OPENAI_API_KEY"))
+        # "database_configured": bool(os.getenv("POSTGRES_URI")),
+        # "openai_configured": bool(os.getenv("OPENAI_API_KEY"))
     }
 
 if __name__ == "__main__":

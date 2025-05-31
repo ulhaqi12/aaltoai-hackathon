@@ -1,0 +1,15 @@
+pandas==2.2.2
+sqlalchemy==2.0.30
+jupyter==1.0.0
+matplotlib==3.8.4
+seaborn==0.13.2
+notebook==7.1.2
+langchain-community==0.3.24
+sqlparse==0.5.3
+rich==14.0.0
+langchain-openai==0.3.18
+psycopg2==2.9.10
+fastapi==0.115.12
+uvicorn==0.34.2
+plotly==6.1.2
+Markdown==3.8

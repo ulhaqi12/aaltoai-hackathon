@@ -81,6 +81,21 @@ services:
     networks:
       - db
 
+  report-generation:
+    container_name: report-generation
+    build:
+      context: ./api-to-report
+      dockerfile: Dockerfile
+    environment:
+      POSTGRES_URI: ${POSTGRES_URI}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    ports:
+      - 8073:8073
+    depends_on:
+      - db
+    networks:
+      - db
+
 networks:
   db:
     driver: bridge

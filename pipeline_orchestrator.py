@@ -13,10 +13,11 @@ class ReportPipelineOrchestrator:
     def __init__(self):
         self.reformulate_url = "http://localhost:8071"
         self.intent_to_query_url = "http://localhost:8070" 
-        self.api_to_report_url = "http://localhost:8000"
+        self.api_to_report_url = "http://localhost:8073"
+        self.plot_generation="http://localhost:8072"
         
         # Database connection for api-to-report service
-        self.postgres_uri = os.getenv("POSTGRES_URI", "postgresql://postgres:postgres@localhost:5432/northwind")
+        self.postgres_uri = os.getenv("POSTGRES_URI")
     
     async def reformulate_intent(self, original_intent: str) -> str:
         """Call reformulate-intent agent to improve the user's query"""
