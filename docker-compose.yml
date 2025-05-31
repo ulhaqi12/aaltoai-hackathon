@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   db:
     container_name: db
@@ -95,6 +93,7 @@ services:
       - db
     networks:
       - db
+
   minio:
     container_name: minio
     image: minio/minio:latest
@@ -109,6 +108,7 @@ services:
       - minio_data:/data
     networks:
       - db
+  
   minio-init:
     image: minio/mc
     depends_on:
@@ -116,10 +116,32 @@ services:
     entrypoint: >
       /bin/sh -c "
       sleep 5;
-      mc alias set local http://minio:9000 minioadmin minioadmin;
+      mc alias set local http://minio:9000/ minioadmin minioadmin;
       mc mb -p local/charts || true;
       mc policy set public local/charts;
+      mc anonymous set download local/charts;
       "
+    networks:
+      - db
+
+  main-gateway:
+    container_name: main-gateway
+    build:
+      context: ./main-gateway
+      dockerfile: Dockerfile
+    environment:
+      POSTGRES_URI: ${POSTGRES_URI}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    ports:
+      - 8074:8074
+    depends_on:
+      - query-service
+      - db
+      - reformulate-intent
+      - query-to-plots
+      - report-generation
+      - minio
+      - minio-init
     networks:
       - db
 
