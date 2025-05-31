@@ -51,6 +51,21 @@ services:
     networks:
       - db
 
+  reformulate-intent:
+    container_name: reformulate-intent
+    build:
+      context: ./reformulate-intent
+      dockerfile: Dockerfile
+    environment:
+      POSTGRES_URI: ${POSTGRES_URI}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    ports:
+      - 8071:8071
+    depends_on:
+      - db
+    networks:
+      - db
+
 networks:
   db:
     driver: bridge
