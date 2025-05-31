@@ -30,7 +30,7 @@ Creating network "northwind_psql_db" with driver "bridge"
 Creating volume "northwind_psql_db" with default driver
 Creating volume "northwind_psql_pgadmin" with default driver
 Creating pgadmin ... done
-Creating db      ... done
+Creating postagre2      ... done
 ````
 
 #### 2. Run psql client:
@@ -40,7 +40,7 @@ Creating db      ... done
 Open another terminal window, and type:
 
 ````bash
-> docker-compose exec db psql -U postgres -d northwind
+> docker-compose exec postagre2 psql -U postgres -d northwind
 
 psql (13.2 (Debian 13.2-1.pgdg100+1))
 Type "help" for help.
@@ -55,15 +55,15 @@ northwind=# select * from us_states;
 
 Alternatively, you can launch bash, then psql:
 ````bash
-docker-compose exec db /bin/bash
+docker-compose exec postagre2 /bin/bash
 
-# You are now inside the "db" docker container
+# You are now inside the "postagre2" docker container
 psql -U postgres northwind
 ````
 
 ##### Method 2: Direct access via the port 55432
 
-The "db" docker exposes postgres on the port 55432. If you have psql on your path, you may connect to it via:
+The "postagre2" docker exposes postgres on the port 55432. If you have psql on your path, you may connect to it via:
 
 ````bash
 # Run this directly from your computer (this will connect to the docker db)
@@ -76,9 +76,9 @@ Access to PgAdmin at the url: http://localhost:5050
 
 Add a new server in PgAdmin:
 - General Tab:
-  - Name = db
+  - Name = postagre2
 - Connection Tab:
-  - Host name: db
+  - Host name: postagre2
   - Username: postgres
   - Password: postgres
 
