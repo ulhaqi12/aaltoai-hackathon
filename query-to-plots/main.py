@@ -109,6 +109,7 @@ def suggest_chart(intent: str, data_preview: list, model: str) -> dict:
         - Only suggest charts that are logically valid and meaningful for the given data
         - DO NOT hallucinate chart types, column names, or configurations that are not present in the data
         - DO NOT include charts if the required columns are not available
+        - DO NOT suggest duplicate charts
         - Include an appropriate chart title for each chart
         - If a grouping column is relevant (e.g., for color), include it
         - Respond **only** in valid JSON (no markdown, no comments, no extra text)
@@ -206,10 +207,14 @@ def visualize_query(request: VisualizationRequest):
 
     html_plots = []
     image_urls = []
-
+    seen_charts = set()
     for chart_info in chart_infos:
         chart_type = chart_info.get("chart_type")
         title = chart_info.get("title", "Generated Chart")
+
+        if (chart_type, title) in seen_charts:
+            continue
+        seen_charts.add((chart_type, title))
 
         if chart_type not in chart_map:
             continue
