@@ -1,6 +1,10 @@
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
+import boto3
+from botocore.client import Config
+import uuid
+import os
 
 def bar_chart(df: pd.DataFrame, x: str, y: str, title: str) -> go.Figure:
     """Creates a bar chart using Plotly."""
@@ -45,3 +49,24 @@ def treemap(df: pd.DataFrame, path: str, values: str, title: str) -> go.Figure:
     # Ensure path is a list (Plotly expects a list of column names)
     path = [path] if isinstance(path, str) else path
     return px.treemap(df, path=path, values=values, title=title)
+
+s3_client = boto3.client(
+    's3',
+    endpoint_url=os.getenv("MINIO_ENDPOINT", 'http://minio:9000'),  # inside Docker use service name, for local use 'localhost'
+    aws_access_key_id=os.getenv("MINIO_USRER", 'minioadmin'),
+    aws_secret_access_key=os.getenv("MINIO_PWD", 'minioadmin'),
+    config=Config(signature_version='s3v4'),
+    region_name='us-east-1'
+)
+
+def upload_image_to_minio(image_bytes: bytes, bucket: str = "charts", suffix: str = "png") -> str:
+    key = f"{uuid.uuid4()}.{suffix}"
+
+    try:
+        s3_client.head_bucket(Bucket=bucket)
+    except s3_client.exceptions.NoSuchBucket:
+        s3_client.create_bucket(Bucket=bucket)
+
+    s3_client.put_object(Bucket=bucket, Key=key, Body=image_bytes, ContentType="image/png")
+
+    return f"http://localhost:9000/{bucket}/{key}"

@@ -7,7 +7,7 @@ import plotly.io as pio
 from sqlalchemy import create_engine
 from dotenv import load_dotenv
 from openai import OpenAI
-from utils import bar_chart, line_chart, pie_chart, scatter_plot, histogram, box_plot, heatmap, treemap, area_chart
+from utils import bar_chart, line_chart, pie_chart, scatter_plot, histogram, box_plot, heatmap, treemap, area_chart, upload_image_to_minio
 import re
 import json
 import base64
@@ -49,7 +49,7 @@ chart_descriptions = {
         "Line Chart – Ideal for visualizing trends or patterns over a continuous variable, usually time."
     ),
     "pie_chart": (
-        "Pie Chart – Shows proportions of a whole. Each slice represents a category's share of the total. "
+        "Pie Chart – Shows proportions of a whole. Each slice represents a category’s share of the total. "
         "Best used when comparing a small number of categories."
     ),
     "scatter_plot": (
@@ -87,7 +87,7 @@ class VisualizationRequest(BaseModel):
 class VisualizationResponse(BaseModel):
     status: str  # "success", "partial", "error"
     html_plots: List[str]
-    image_base64s: Optional[List[str]] = None
+    image_urls: Optional[List[str]] = None
     error_message: Optional[str] = None
 
 
@@ -187,7 +187,7 @@ def visualize_query(request: VisualizationRequest):
         return VisualizationResponse(
             status="error",
             html_plots=["<p>No data returned from SQL query.</p>"],
-            error_message="No Data returned from SQL query."
+            error_message="No data returned from SQL query."
         )
 
     preview_data = df.head(5).to_dict(orient="records")
@@ -202,7 +202,7 @@ def visualize_query(request: VisualizationRequest):
         )
 
     html_plots = []
-    image_base64s = []
+    image_urls = []
 
     for chart_info in chart_infos:
         chart_type = chart_info.get("chart_type")
@@ -218,14 +218,17 @@ def visualize_query(request: VisualizationRequest):
 
         try:
             fig = chart_map[chart_type](df, title=title, **kwargs)
+
             html = pio.to_html(fig, full_html=False)
             html_plots.append(html)
 
             image_bytes = fig.to_image(format="png", engine="kaleido")
-            image_base64s.append(base64.b64encode(image_bytes).decode("utf-8"))
+            image_url = upload_image_to_minio(image_bytes)
+            image_urls.append(image_url)
+
         except Exception as e:
             html_plots.append(f"<p>Failed to render {chart_type}: {str(e)}</p>")
-            image_base64s.append("")
+            image_urls.append("")
 
     if not html_plots:
         return VisualizationResponse(
@@ -234,9 +237,10 @@ def visualize_query(request: VisualizationRequest):
             error_message="All suggested charts failed to render."
         )
 
-    status = "partial" if any("Failed to render" in html for html in html_plots) else "success"
+    status = "partial" if any(html.startswith("<p>Failed to render") for html in html_plots) else "success"
+
     return VisualizationResponse(
         status=status,
         html_plots=html_plots,
-        image_base64s=image_base64s,
+        image_urls=image_urls,
     )

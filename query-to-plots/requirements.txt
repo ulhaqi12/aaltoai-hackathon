@@ -8,13 +8,9 @@ langchain-community==0.3.24
 sqlparse==0.5.3
 rich==14.0.0
 langchain-openai==0.3.18
-
-# Use precompiled binary to avoid build issues
 psycopg2-binary==2.9.10
-
 plotly==6.1.2
-
-# FastAPI + Uvicorn with standard extras (includes dependencies like pydantic, typing-extensions, etc.)
 fastapi[standard]==0.115.1
 uvicorn[standard]==0.34.2
 kaleido==1.0.0rc13
+boto3==1.38.27
