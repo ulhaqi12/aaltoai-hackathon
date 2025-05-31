@@ -52,7 +52,7 @@ chart_descriptions = {
 class VisualizationRequest(BaseModel):
     sql_query: str
     intent: str
-    model: Optional[str] = "gpt-4o"
+    model: Optional[str] = "gpt-4o-mini"
 
 class VisualizationResponse(BaseModel):
     html_plots: List[str]
