@@ -4,7 +4,16 @@ from typing import Optional
 from dotenv import load_dotenv
 import os
 
-from utils import setup_postgres_agent, get_result
+from intent_utils import setup_postgres_agent, get_result
+
+from sqlalchemy import create_engine, inspect
+
+
+def get_table_names(uri: str) -> list[str]:
+    """Connect to the PostgreSQL database and return a list of table names."""
+    engine = create_engine(uri)
+    inspector = inspect(engine)
+    return inspector.get_table_names()
 
 # Load env variables (for POSTGRES_URI and OPENAI_API_KEY)
 load_dotenv()
@@ -16,22 +25,7 @@ app = FastAPI(title="Postgres AI SQL Agent")
 POSTGRES_URI = os.getenv("POSTGRES_URI")
 
 # Optionally restrict to specific tables
-TABLE_SCOPE = [
-    "categories",
-    "customer_customer_demo",
-    "customer_demographics",
-    "customers",
-    "employee_territories",
-    "employees",
-    "order_details",
-    "orders",
-    "products",
-    "region",
-    "shippers",
-    "suppliers",
-    "territories",
-    "us_states"
-]
+TABLE_SCOPE = get_table_names(POSTGRES_URI)
 
 # Load agent once at startup
 agent_executor, query_logger = setup_postgres_agent(POSTGRES_URI, include_tables=TABLE_SCOPE)
