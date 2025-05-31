@@ -41,7 +41,16 @@ Create a `.env` file:
 ```
 OPENAI_API_KEY=your_openai_api_key
 POSTGRES_URI=postgresql://postgres:postgres@db:5432/northwind
+MINIO_USRER=minioadmin
+MINIO_PWD=minioadmin
+MINIO_ENDPOINT=http://minio:9000
 ```
+
+> **Note:** You should have the `psql` client installed beforehand.  
+> - **macOS:** `brew install postgresql`  
+> - **Linux (Debian/Ubuntu):** `sudo apt install postgresql-client`  
+> - **Windows:** Download from the [official PostgreSQL site](https://www.postgresql.org/download/windows/) and choose the "psql" tool during installation.
+
 
 ### Running
 
