@@ -6,7 +6,7 @@ url = "http://localhost:8074/pipeline"
 
 # Request payload
 payload = {
-    "intent": "What is the total count of orders placed each month in 1997?"
+    "intent": "What are the total sales amounts by customer for our top 10 customers?"
 }
 
 # Send POST request

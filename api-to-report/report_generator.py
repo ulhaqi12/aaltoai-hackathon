@@ -1,9 +1,15 @@
-from typing import Dict, List, Any, Tuple
 import json
+import markdown
+import pandas as pd
+import requests
+import tempfile
+import os
+import base64
+from typing import List, Tuple, Dict, Any
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
-import pandas as pd
-import markdown
+from langchain_core.messages import HumanMessage
+
 
 class ReportGenerator:
     def __init__(self, openai_api_key: str):
@@ -13,82 +19,105 @@ class ReportGenerator:
             temperature=0.1,
             openai_api_key=openai_api_key
         )
-        
+
         self.report_prompt = ChatPromptTemplate.from_messages([
             ("system", """You are an expert data analyst and report writer. Your task is to create a cohesive, 
             well-structured report based on:
             1. The original English query/intent
             2. The data retrieved from the SQL query
-            3. The visualizations created
-            
+            3. The visualizations created and provided images
+
             Create a report that explains the insights, trends, and answers the original query in a clear,
             professional manner. Include specific data points and reference the visualizations by their figure numbers.
-            
-            The report should have: (Based on the original intent largely)
+
+            The report should have:
             - A clear title
             - An executive summary
-            - Main findings/analysis with references to specific plots (e.g. "As shown in Figure 1...")
+            - Main findings/analysis with references to specific plots or images
             - Data averages, distributions and comparisons
             - Conclusion
-            
+
             Use markdown formatting for better readability.
-            
-            The plots will be rendered in the final report, so focus on analyzing them rather than describing their appearance."""),
+            """),
             ("human", "{input}")
         ])
 
-    def _get_plot_metadata(self, plots: List[str]) -> List[Dict[str, str]]:
-        """Extract metadata from HTML plots for context."""
-        metadata = []
-        for i, plot in enumerate(plots):
-            info = {
+    def _get_plot_metadata(self, plots: List[str], image_urls: List[str]) -> List[Dict[str, str]]:
+        return [
+            {
                 "figure_number": i + 1,
-                "title": f"Figure {i+1}",
-                "type": "plotly",
-            }
-            metadata.append(info)
-        return metadata
+                "title": f"Figure {i + 1}",
+                "type": "plotly+image",
+                "image_url": url
+            } for i, url in enumerate(image_urls)
+        ]
 
     def _prepare_data_summary(self, df: pd.DataFrame) -> str:
-        """Prepare a comprehensive data summary for the LLM."""
-        summary_parts = []
-        
-        # Basic info
-        summary_parts.append(f"Dataset contains {len(df)} rows and {len(df.columns)} columns.")
-        
-        # Numeric columns summary
+        summary_parts = [f"Dataset contains {len(df)} rows and {len(df.columns)} columns."]
+
         numeric_cols = df.select_dtypes(include=['number']).columns
-        if len(numeric_cols) > 0:
+        if numeric_cols.any():
             summary_parts.append("\nNumeric columns summary:")
             for col in numeric_cols:
                 stats = df[col].describe()
-                summary_parts.append(f"- {col}: mean={stats['mean']:.2f}, std={stats['std']:.2f}, min={stats['min']:.2f}, max={stats['max']:.2f}")
-        
-        # Date columns info
+                summary_parts.append(
+                    f"- {col}: mean={stats['mean']:.2f}, std={stats['std']:.2f}, "
+                    f"min={stats['min']:.2f}, max={stats['max']:.2f}"
+                )
+
         date_cols = df.select_dtypes(include=['datetime64']).columns
-        if len(date_cols) > 0:
+        if date_cols.any():
             summary_parts.append("\nDate columns:")
             for col in date_cols:
                 summary_parts.append(f"- {col}: from {df[col].min()} to {df[col].max()}")
-        
+
         return "\n".join(summary_parts)
+
+    import base64
+
+    def _download_images_as_bytes(self, image_urls: List[str]) -> Tuple[List[Dict[str, Any]], List[str]]:
+        image_blobs = []
+        temp_files = []
+
+        for idx, url in enumerate(image_urls):
+            try:
+                response = requests.get(url)
+                response.raise_for_status()
+
+                # Write to temp file
+                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+                temp_file.write(response.content)
+                temp_file.close()
+                temp_files.append(temp_file.name)
+
+                # Read and encode image to base64
+                with open(temp_file.name, "rb") as f:
+                    encoded = base64.b64encode(f.read()).decode("utf-8")
+                    image_blobs.append({
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/png;base64,{encoded}"
+                        }
+                    })
+
+            except Exception as e:
+                print(f"⚠️ Failed to download or read image {url}: {e}")
+
+        return image_blobs, temp_files
+
 
     def generate_report(
         self,
         original_query: str,
         sql_results: pd.DataFrame,
-        plots: List[str]
+        plots: List[str],
+        image_urls: List[str]
     ) -> Tuple[str, List[str]]:
-        """Generate a comprehensive report based on the query, data, and plots.
-        Returns both the markdown report text and the list of plots to be rendered."""
-        
-        # Prepare the data for the LLM
+        # Summary and metadata
         data_summary = self._prepare_data_summary(sql_results)
-        plot_metadata = self._get_plot_metadata(plots)
-        
-        # Prepare the input for the LLM
-        input_data = {
-            "input": f"""
+        plot_metadata = self._get_plot_metadata(plots, image_urls)
+
+        input_text = f"""
 Original Query: {original_query}
 
 Data Summary:
@@ -98,23 +127,27 @@ Available Visualizations:
 {json.dumps(plot_metadata, indent=2)}
 
 Please generate a comprehensive report analyzing this data and answering the original query.
-Reference the figures by their figure numbers when discussing insights from the visualizations.
+Reference the figures by their figure numbers when discussing insights from the visualizations and images.
 Include specific metrics, trends, and actionable insights.
 """
-        }
-        
-        # Generate the report
-        chain = self.report_prompt | self.llm
-        report = chain.invoke(input_data)
-        
-        return report.content, plots
+
+        image_blobs, temp_files = self._download_images_as_bytes(image_urls)
+        message = HumanMessage(content=[{"type": "text", "text": input_text}] + image_blobs)
+
+        try:
+            chain = self.report_prompt | self.llm
+            response = chain.invoke(message)
+            return response.content, plots
+        finally:
+            # Cleanup temp files
+            for f in temp_files:
+                try:
+                    os.remove(f)
+                except Exception as e:
+                    print(f"⚠️ Failed to delete temp file {f}: {e}")
 
     def save_report(self, report_content: str, plots: List[str], output_path: str):
-        """Save the generated report to an HTML file including both text and interactive plots."""
-        
-        # Convert markdown to HTML
         html_report = markdown.markdown(report_content)
-        
         html_content = f"""
         <!DOCTYPE html>
         <html>
@@ -122,110 +155,34 @@ Include specific metrics, trends, and actionable insights.
             <title>Data Analysis Report</title>
             <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
             <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
-                body {{
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                    line-height: 1.6;
-                    color: #333;
-                    background-color: #f8f9fa;
-                    margin: 0;
-                    padding: 0;
-                }}
-                .container {{
-                    max-width: 1200px;
-                    margin: 0 auto;
-                    padding: 20px;
-                }}
-                .report-content {{
-                    background-color: white;
-                    padding: 40px;
-                    border-radius: 10px;
-                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                    margin-bottom: 30px;
-                }}
-                .plot-container {{
-                    background-color: white;
-                    margin: 30px 0;
-                    padding: 25px;
-                    border-radius: 10px;
-                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                }}
-                h1 {{
-                    color: #2c3e50;
-                    border-bottom: 3px solid #3498db;
-                    padding-bottom: 10px;
-                    margin-bottom: 30px;
-                }}
-                h2 {{
-                    color: #34495e;
-                    margin-top: 35px;
-                    margin-bottom: 20px;
-                }}
-                h3 {{
-                    color: #7f8c8d;
-                    margin-top: 25px;
-                }}
-                ul, ol {{
-                    padding-left: 25px;
-                }}
-                li {{
-                    margin-bottom: 8px;
-                }}
-                .metric {{
-                    background-color: #ecf0f1;
-                    padding: 10px 15px;
-                    border-radius: 5px;
-                    display: inline-block;
-                    margin: 5px;
-                }}
-                .highlight {{
-                    background-color: #fff3cd;
-                    padding: 15px;
-                    border-left: 4px solid #ffc107;
-                    margin: 20px 0;
-                }}
-                code {{
-                    background-color: #f8f9fa;
-                    padding: 2px 6px;
-                    border-radius: 3px;
-                    font-family: 'Courier New', monospace;
-                }}
-                .footer {{
-                    text-align: center;
-                    color: #7f8c8d;
-                    margin-top: 40px;
-                    padding: 20px;
-                    border-top: 1px solid #ecf0f1;
-                }}
+                body {{ font-family: 'Segoe UI', sans-serif; background-color: #f8f9fa; }}
+                .container {{ max-width: 1200px; margin: auto; padding: 20px; }}
+                .report-content, .plot-container {{ background: #fff; padding: 20px; margin-bottom: 30px; border-radius: 8px; }}
+                .footer {{ text-align: center; color: #888; margin-top: 40px; }}
             </style>
         </head>
         <body>
             <div class="container">
-                <div class="report-content">
-                    {html_report}
-                </div>
+                <div class="report-content">{html_report}</div>
         """
-        
-        # Add each plot with figure labels
+
         for i, plot_html in enumerate(plots):
-            html_content += f'''
+            html_content += f"""
                 <div class="plot-container">
-                    <h3 style="text-align: center; color: #2c3e50; margin-bottom: 20px;">
-                        Figure {i+1}
-                    </h3>
+                    <h3 style="text-align: center;">Figure {i + 1}</h3>
                     {plot_html}
                 </div>
-            '''
-        
+            """
+
         html_content += """
                 <div class="footer">
-                    <p>Report generated automatically using AI-powered data analysis</p>
+                    <p>Report generated using AI-based analysis pipeline.</p>
                 </div>
             </div>
         </body>
         </html>
         """
-        
+
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write(html_content)
