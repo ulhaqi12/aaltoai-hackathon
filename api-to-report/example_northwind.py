@@ -5,34 +5,54 @@ import requests
 import json
 from datetime import datetime, timedelta
 from sqlalchemy import create_engine, text
+from langchain_openai import ChatOpenAI
+from langchain.prompts import ChatPromptTemplate
+import os
+from dotenv import load_dotenv
+import numpy as np
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Verify API key
+api_key = os.getenv("OPENAI_API_KEY")
+if not api_key:
+    raise ValueError("OPENAI_API_KEY not found in environment variables or .env file")
+if api_key.startswith('sk-') is False:
+    raise ValueError("OPENAI_API_KEY seems invalid. It should start with 'sk-'")
 
 def get_northwind_data():
-    """Connect to Northwind DB and get relevant sales data"""
-    # Create SQLAlchemy engine - using the exposed port from docker-compose
-    engine = create_engine('postgresql://postgres:postgres@localhost:55432/northwind')
+    """Generate sample Northwind data"""
+    # Create date range for a year of data
+    dates = pd.date_range(start='2023-01-01', end='2023-12-31', freq='D')
     
-    # Query to get order details with dates, amounts, and customer info
-    query = """
-    SELECT 
-        o.order_date,
-        SUM(od.quantity * od.unit_price * (1 - od.discount)) as total_sales,
-        COUNT(DISTINCT o.customer_id) as unique_customers,
-        SUM(od.quantity * od.unit_price * (1 - od.discount)) / COUNT(DISTINCT o.order_id) as avg_order_value,
-        COUNT(DISTINCT o.order_id) as num_orders,
-        SUM(od.quantity) as total_items
-    FROM orders o
-    JOIN order_details od ON o.order_id = od.order_id
-    WHERE o.order_date IS NOT NULL
-    GROUP BY o.order_date
-    ORDER BY o.order_date;
-    """
+    # Set random seed for reproducibility
+    np.random.seed(42)
     
-    # Execute query and load into DataFrame
-    with engine.connect() as conn:
-        df = pd.read_sql(query, conn)
+    # Generate sample data with realistic patterns
+    base_sales = np.linspace(1000, 1500, len(dates))  # Slight upward trend
+    weekly_pattern = np.array([1.0, 0.8, 0.9, 1.0, 1.1, 1.3, 1.4] * 53)[:len(dates)]
+    seasonal_pattern = 1 + 0.3 * np.sin(np.linspace(0, 2*np.pi, len(dates)))
     
-    # Convert order_date to datetime if it isn't already
-    df['order_date'] = pd.to_datetime(df['order_date'])
+    # Combine patterns with noise
+    total_sales = (base_sales * weekly_pattern * seasonal_pattern + 
+                  np.random.normal(0, 100, len(dates))).round(2)
+    
+    unique_customers = (20 + 5 * weekly_pattern + np.random.randint(-3, 4, len(dates))).astype(int)
+    num_orders = (unique_customers * 1.5 + np.random.randint(-5, 6, len(dates))).astype(int)
+    total_items = (num_orders * 5 + np.random.randint(-10, 11, len(dates))).astype(int)
+    
+    # Create DataFrame
+    df = pd.DataFrame({
+        'order_date': dates,
+        'total_sales': total_sales,
+        'unique_customers': unique_customers,
+        'num_orders': num_orders,
+        'total_items': total_items
+    })
+    
+    # Calculate derived metrics
+    df['avg_order_value'] = (df['total_sales'] / df['num_orders']).round(2)
     
     return df
 
@@ -123,45 +143,145 @@ def create_northwind_plots(df):
     
     return [fig1, fig2, fig3]
 
+def generate_report(df, plots):
+    """Generate analysis report using OpenAI"""
+    llm = ChatOpenAI(
+        model="gpt-4o-mini",
+        temperature=0.1,
+        openai_api_key=api_key
+    )
+    
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", """You are an expert data analyst and report writer. Analyze the provided Northwind sales data and create 
+        a comprehensive report that includes:
+        
+        1. Executive Summary
+        2. Key Findings
+           - Sales Performance and Trends
+           - Customer Behavior Analysis
+           - Order Value and Size Analysis
+        3. Detailed Analysis
+           - Weekly/Monthly Patterns
+           - Customer Engagement Metrics
+           - Revenue Growth Opportunities
+        4. Recommendations
+        
+        Use specific numbers and reference the visualizations in your analysis.
+        Format the report in markdown for better readability."""),
+        ("human", "{input}")
+    ])
+    
+    # Prepare data summary for the LLM
+    data_summary = {
+        "date_range": f"{df['order_date'].min().strftime('%Y-%m-%d')} to {df['order_date'].max().strftime('%Y-%m-%d')}",
+        "total_sales": f"${df['total_sales'].sum():,.2f}",
+        "avg_daily_sales": f"${df['total_sales'].mean():,.2f}",
+        "total_customers": int(df['unique_customers'].sum()),
+        "avg_order_value": f"${df['avg_order_value'].mean():,.2f}",
+        "total_orders": int(df['num_orders'].sum()),
+        "avg_items_per_order": f"{(df['total_items'] / df['num_orders']).mean():.1f}"
+    }
+    
+    # Generate the report
+    input_data = {
+        "input": f"""
+Please analyze this Northwind sales data and create a report:
+
+Date Range: {data_summary['date_range']}
+
+Key Metrics:
+- Total Sales: {data_summary['total_sales']}
+- Average Daily Sales: {data_summary['avg_daily_sales']}
+- Total Unique Customers: {data_summary['total_customers']}
+- Total Orders: {data_summary['total_orders']}
+- Average Order Value: {data_summary['avg_order_value']}
+- Average Items per Order: {data_summary['avg_items_per_order']}
+
+The visualizations show:
+Figure 1: Daily sales trend with 7-day moving average
+Figure 2: Daily customer activity (unique customers and number of orders)
+Figure 3: Order value and size metrics over time
+
+Please provide insights about trends, patterns, and recommendations.
+"""
+    }
+    
+    chain = prompt | llm
+    report_content = chain.invoke(input_data)
+    
+    return report_content.content
+
+def save_report(report_content, plots, output_path='northwind_report.html'):
+    """Save the report and plots as an HTML file"""
+    html_content = f"""
+    <html>
+    <head>
+        <title>Northwind Sales Analysis Report</title>
+        <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                line-height: 1.6;
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 20px;
+                background-color: #f5f5f5;
+            }}
+            .report-content {{
+                background-color: white;
+                padding: 30px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }}
+            .plot-container {{
+                margin: 30px 0;
+                background-color: white;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }}
+            h1, h2, h3 {{
+                color: #2C3E50;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="report-content">
+            {report_content}
+        </div>
+    """
+    
+    # Add each plot
+    for i, plot in enumerate(plots):
+        div = plot.to_html(full_html=False, include_plotlyjs=False)
+        html_content += f'<div class="plot-container" id="plot-{i}">{div}</div>'
+    
+    html_content += """
+    </body>
+    </html>
+    """
+    
+    with open(output_path, 'w') as f:
+        f.write(html_content)
+
 def main():
     try:
-        # Get real data from Northwind
+        # Get data from Northwind
         df = get_northwind_data()
         
         # Create visualizations
         plots = create_northwind_plots(df)
         
-        # Original query that would come from the English-to-SQL part
-        original_query = """Analyze our sales performance, including:
-        - Daily sales trends and moving averages
-        - Customer activity patterns
-        - Order value and size metrics"""
+        # Generate the report
+        report_content = generate_report(df, plots)
         
-        # Prepare the request data
-        request_data = {
-            "original_query": original_query,
-            "sql_results": df.to_dict('records'),
-            "plot_data": [fig.to_dict() for fig in plots]
-        }
-        
-        # Make request to the API
-        response = requests.post(
-            "http://localhost:8000/generate-report",
-            json=request_data
-        )
-        
-        if response.status_code == 200:
-            # Save the HTML report
-            with open('northwind_report.html', 'w') as f:
-                f.write(response.text)
-            print("Report generated successfully! Open northwind_report.html in your browser to view it.")
-        else:
-            print(f"Error: {response.status_code}")
-            print(response.text)
+        # Save the report
+        output_file = 'northwind_report.html'
+        save_report(report_content, plots, output_file)
+        print(f"Report generated successfully! Open {output_file} in your browser to view it.")
             
     except Exception as e:
         print(f"Error: {str(e)}")
-        print("Make sure the database is running (docker-compose up) and the FastAPI server is running.")
 
 if __name__ == "__main__":
     main() 
