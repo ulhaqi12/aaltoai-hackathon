@@ -21,24 +21,33 @@ class ReportGenerator:
         )
 
         self.report_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are an expert data analyst and report writer. Your task is to create a cohesive, 
-            well-structured report based on:
-            1. The original English query/intent
-            2. The data retrieved from the SQL query
-            3. The visualizations created and provided images
+            ("system", """
+        You are a professional data analyst and report writer. Your task is to generate a concise, well-structured report that addresses the user's original query using:
 
-            Create a report that explains the insights, trends, and answers the original query in a clear,
-            professional manner. Include specific data points and reference the visualizations by their figure numbers.
+        1. The original user intent
+        2. A summary of the SQL query results
+        3. Context from supporting visualizations (e.g., figures — referenced only by number)
 
-            The report should have:
-            - A clear title
-            - An executive summary
-            - Main findings/analysis with references to specific plots or images
-            - Data averages, distributions and comparisons
-            - Conclusion
+        The report must include the following sections:
 
-            Use markdown formatting for better readability.
-            """),
+        - **Title**: Clear and focused
+        - **Executive Summary**: A brief overview of the main insights (3–4 sentences)
+        - **Main Findings**: Key observations from the data (e.g., top items, totals, comparisons)
+        - **Trends and Comparisons**:
+            - Include relevant metrics like averages, variations, and distributions
+            - Reference standard deviation or rankings if useful
+        - **Visual References**: Mention figures by number only (e.g., “Figure 1”) — **do not describe or include the images**
+        - **Conclusion**: Summarize the findings and suggest possible actions or decisions
+
+        Guidelines:
+        - Write in clear, professional English
+        - Use markdown for structure and emphasis
+        - Do **not** include images or their descriptions
+        - Do **not** output raw SQL or HTML
+        - Focus on actionable insights, not visual design
+
+        Your audience is business decision-makers seeking clarity and recommendations.
+        """),
             ("human", "{input}")
         ])
 
@@ -131,15 +140,30 @@ Reference the figures by their figure numbers when discussing insights from the 
 Include specific metrics, trends, and actionable insights.
 """
 
+        MAX_CHARS = 128_000 * 4
+
         image_blobs, temp_files = self._download_images_as_bytes(image_urls)
-        message = HumanMessage(content=[{"type": "text", "text": input_text}] + image_blobs)
+
+        # Combine all content
+        text_payload = {"type": "text", "text": input_text}
+        message_content = [text_payload] + image_blobs
+
+        # Estimate total size
+        total_size = sum(len(json.dumps(part)) for part in message_content)
+
+        # If message is too large, truncate text input (but keep images)
+        if total_size > MAX_CHARS:
+            allowed_text_len = MAX_CHARS - sum(len(json.dumps(blob)) for blob in image_blobs)
+            truncated_text = input_text[:allowed_text_len]
+            message_content = [{"type": "text", "text": truncated_text}] + image_blobs
+
+        message = HumanMessage(content=message_content)
 
         try:
             chain = self.report_prompt | self.llm
             response = chain.invoke(message)
             return response.content, plots
         finally:
-            # Cleanup temp files
             for f in temp_files:
                 try:
                     os.remove(f)

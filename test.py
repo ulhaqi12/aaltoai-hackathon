@@ -6,7 +6,8 @@ url = "http://localhost:8074/pipeline"
 
 # Request payload
 payload = {
-    "intent": "What are the total sales amounts by customer for our top 10 customers?"
+    "intent": "What are the total sales amounts by customer for our top 10 customers?",
+    "model": "gpt-4o-mini"
 }
 
 # Send POST request

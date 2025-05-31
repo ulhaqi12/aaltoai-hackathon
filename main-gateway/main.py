@@ -28,6 +28,7 @@ app = FastAPI(title="Report Generation Pipeline API")
 
 class PipelineRequest(BaseModel):
     intent: str
+    model: str
 
 class PipelineResponse(BaseModel):
     success: bool
@@ -47,10 +48,13 @@ class ReportPipelineOrchestrator:
         self.api_to_report_url = "http://report-generation:8073"
         self.query_to_plots_url = "http://query-to-plots:8072"
 
-    async def reformulate_intent(self, original_intent: str) -> str:
+    async def reformulate_intent(self, original_intent: str, model: str) -> str:
         logger.info("Reformulating intent...")
         async with aiohttp.ClientSession() as session:
-            payload = {"intent": original_intent}
+            payload = {
+                "intent": original_intent,
+                "model": model
+            }
             try:
                 async with session.post(f"{self.reformulate_url}/reformulate", json=payload) as response:
                     result = await response.json()
@@ -129,7 +133,7 @@ async def run_pipeline(request: PipelineRequest):
     logger.info(f"Pipeline triggered with intent: {request.intent}")
     orchestrator = ReportPipelineOrchestrator()
 
-    reformulated_intent = await orchestrator.reformulate_intent(request.intent)
+    reformulated_intent = await orchestrator.reformulate_intent(request.intent, request.model)
     
     sql_query = await orchestrator.generate_sql_query(reformulated_intent)
     if not sql_query:

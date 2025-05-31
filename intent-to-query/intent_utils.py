@@ -1,17 +1,24 @@
 import os
+import logging
 import sqlparse
+from dotenv import load_dotenv
+from sqlalchemy import create_engine
+from sqlalchemy.exc import SQLAlchemyError
 from rich.console import Console
 from rich.syntax import Syntax
-from sqlalchemy import create_engine
+
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain.callbacks.manager import CallbackManager
 from langchain_community.utilities import SQLDatabase
 from langchain_community.agent_toolkits import create_sql_agent
 from langchain_openai import ChatOpenAI
-from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
 
 
 class SQLQueryLogger(BaseCallbackHandler):
@@ -26,68 +33,84 @@ class SQLQueryLogger(BaseCallbackHandler):
         self.intermediate_steps.append(("finish", finish))
 
 
-def setup_postgres_agent(postgres_uri: str, include_tables=None) -> tuple:
-    """Connects to existing Postgres DB and sets up the SQL agent."""
-    engine = create_engine(postgres_uri)
+def setup_postgres_agent(postgres_uri: str, include_tables=None, model="gpt-4o-mini") -> tuple:
+    """
+    Initializes the SQL agent using the provided PostgreSQL URI.
+    Returns the agent executor and query logger.
+    """
+    try:
+        if not postgres_uri:
+            raise ValueError("POSTGRES_URI is not set in environment variables.")
 
-    # Set up database with optional table scope
-    db = SQLDatabase(engine=engine, include_tables=include_tables)
+        logger.info("Creating SQLAlchemy engine...")
+        engine = create_engine(postgres_uri)
 
-    # Configure OpenAI model
-    llm = ChatOpenAI(
-        model="gpt-3.5-turbo",  # or "gpt-4"
-        temperature=0,
-    )
+        logger.info("Connecting to SQLDatabase...")
+        db = SQLDatabase(engine=engine, include_tables=include_tables)
 
-    # Enable logging
-    query_logger = SQLQueryLogger()
-    callback_manager = CallbackManager([query_logger])
+        logger.info("Initializing OpenAI LLM...")
+        llm = ChatOpenAI(
+            model=model,
+            temperature=0,
+        )
 
-    # Create the SQL agent
-    agent_executor = create_sql_agent(
-        llm,
-        db=db,
-        verbose=True,
-        callback_manager=callback_manager,
-        max_iterations=50,
-        max_execution_time=120,
-        early_stopping_method="generate"
-    )
+        query_logger = SQLQueryLogger()
+        callback_manager = CallbackManager([query_logger])
 
-    return agent_executor, query_logger
+        logger.info("Creating LangChain SQL agent...")
+        agent_executor = create_sql_agent(
+            llm,
+            db=db,
+            verbose=True,
+            callback_manager=callback_manager,
+            max_iterations=50,
+            max_execution_time=120,
+            early_stopping_method="generate"
+        )
+
+        logger.info("SQL agent successfully initialized.")
+        return agent_executor, query_logger
+
+    except SQLAlchemyError as e:
+        logger.exception("Database connection failed.")
+        raise RuntimeError("Failed to connect to the PostgreSQL database.") from e
+    except Exception as e:
+        logger.exception("Failed to set up SQL agent.")
+        raise RuntimeError("Failed to initialize SQL agent.") from e
 
 
 def get_result(query: str, agent_executor: object, query_logger: SQLQueryLogger) -> tuple:
-    query_logger.intermediate_steps.clear()
-    result = agent_executor.invoke({"input": query})
+    """
+    Executes the query using the agent and returns the result and SQL query used.
+    """
+    try:
+        query_logger.intermediate_steps.clear()
+        logger.info("Invoking SQL agent with query: %s", query)
 
-    captured_query = None
-    for event_type, event in query_logger.intermediate_steps:
-        if event_type == "action" and getattr(event, "tool", None) == 'sql_db_query':
-            captured_query = getattr(event, "tool_input", None)
+        result = agent_executor.invoke({"input": query})
 
-    return result.get('output', None), captured_query
+        captured_query = None
+        for event_type, event in query_logger.intermediate_steps:
+            if event_type == "action" and getattr(event, "tool", None) == 'sql_db_query':
+                captured_query = getattr(event, "tool_input", None)
+
+        logger.info("Query executed successfully.")
+        return result.get('output', None), captured_query
+
+    except Exception as e:
+        logger.exception("Failed to execute query.")
+        raise RuntimeError("Failed to execute query using agent.") from e
 
 
 def pprint_sql(q):
+    """
+    Pretty-prints the SQL query using Rich.
+    """
+    if not q:
+        logger.warning("No SQL query provided for printing.")
+        return
+
     formatted_sql = sqlparse.format(q, reindent=True, keyword_case='upper')
     console = Console()
     syntax = Syntax(formatted_sql, "sql", theme="monokai", line_numbers=True)
     console.print(syntax)
-
-
-# if __name__ == "__main__":
-#     # Read environment variables
-#     POSTGRES_URI = os.getenv("POSTGRES_URI")  # e.g. postgresql://user:pass@host:port/dbname
-#     TABLE_SCOPE = ["retail_sales"]  # Optional: restrict agent to specific tables
-
-#     # Setup agent
-#     agent_executor, query_logger = setup_postgres_agent(POSTGRES_URI, include_tables=TABLE_SCOPE)
-
-#     # Example query
-#     question = "Which is the highest selling product category?"
-#     answer, sql_query = get_result(question, agent_executor, query_logger)
-
-#     print("Answer:", answer)
-#     if sql_query:
-#         pprint_sql(sql_query)

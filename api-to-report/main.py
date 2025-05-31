@@ -54,10 +54,6 @@ def execute_sql_query(sql_query: str) -> pd.DataFrame:
         logger.error(f"Database query failed: {e}")
         raise HTTPException(status_code=500, detail=f"Database query failed: {str(e)}")
 
-def reconstruct_plotly_figures(plots_html: List[str]) -> List[str]:
-    """Reconstruct Plotly plots from HTML strings."""
-    return plots_html
-
 @app.post("/generate-report", response_model=ReportResponse)
 async def generate_report(request: ReportRequest):
     """Generate a comprehensive report from SQL query and visualization output."""
@@ -79,22 +75,20 @@ async def generate_report(request: ReportRequest):
             logger.warning("No plots provided")
             raise HTTPException(status_code=400, detail="No plots provided")
 
-        plots = reconstruct_plotly_figures(request.plots)
-
         # Add image URLs if present
         logger.info(request.image_urls)
         image_urls = [url.replace("localhost", "minio") for url in request.image_urls if url]
         logger.info(image_urls)
-        if image_urls:
-            logger.info(f"Appending {len(request.image_urls)} image URLs to plots")
-            plots.extend([f'<img src="{url}" style="max-width:100%">' for url in request.image_urls])
+        # if image_urls:
+        #     logger.info(f"Appending {len(request.image_urls)} image URLs to plots")
+        #     plots.extend([f'<img src="{url}" style="max-width:100%">' for url in request.image_urls])
 
         query_for_analysis = request.reformulated_query or request.original_query
         logger.info("Generating report content...")
         report_content, plots = report_generator.generate_report(
             original_query=query_for_analysis,
             sql_results=df,
-            plots=plots,
+            plots=request.plots,
             image_urls=image_urls
         )
 

@@ -1,35 +1,64 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
-from typing import Optional
 import os
-from openai import OpenAI
+import logging
+from typing import Optional
+
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, inspect
+from openai import OpenAI, OpenAIError
+from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
 
 # Load environment variables
 load_dotenv()
 
-# Init OpenAI client
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+)
+logger = logging.getLogger(__name__)
+
+# Initialize OpenAI client
+try:
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+except Exception as e:
+    logger.critical("Failed to initialize OpenAI client: %s", e)
+    raise
+
+# PostgreSQL connection string
 POSTGRES_URI = os.getenv("POSTGRES_URI", "postgresql://postgres:postgres@db:5432/northwind")
 
-# Init FastAPI app
+# Initialize FastAPI app
 app = FastAPI(title="Intent Reformulation API")
 
-# === Schema extractor ===
+
+# Function to extract PostgreSQL schema
 def get_postgres_schema(uri: str) -> str:
-    engine = create_engine(uri)
-    inspector = inspect(engine)
+    try:
+        engine = create_engine(uri)
+        inspector = inspect(engine)
 
-    schema_parts = []
-    for table_name in inspector.get_table_names():
-        columns = inspector.get_columns(table_name)
-        column_names = [col["name"] for col in columns]
-        schema_parts.append(f"- {table_name}({', '.join(column_names)})")
+        schema_parts = []
+        for table_name in inspector.get_table_names():
+            columns = inspector.get_columns(table_name)
+            column_names = [col["name"] for col in columns]
+            schema_parts.append(f"- {table_name}({', '.join(column_names)})")
 
-    return "Tables:\n" + "\n".join(schema_parts)
+        logger.info("Extracted schema from PostgreSQL")
+        return "Tables:\n" + "\n".join(schema_parts)
+    except Exception as e:
+        logger.error("Failed to extract schema: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to extract schema from database")
 
-# === LLM reformulation ===
+
+# Retry logic for OpenAI API
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_fixed(2),
+    retry=retry_if_exception_type(OpenAIError),
+    reraise=True,
+)
 def reformulate_intent(user_intent: str, schema: str, model: str = "gpt-4") -> str:
     system_prompt = f"""
 You are a helpful assistant that reformulates vague or underspecified user intents into precise, well-structured, and SQL-queryable natural language questions. 
@@ -49,19 +78,24 @@ Schema:
 {schema}
 """
 
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": system_prompt.strip()},
-            {"role": "user", "content": user_intent.strip()}
-        ],
-        temperature=0.3
-    )
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt.strip()},
+                {"role": "user", "content": user_intent.strip()}
+            ],
+            temperature=0.3
+        )
+        result = response.choices[0].message.content.strip()
+        logger.info("Reformulated intent successfully")
+        return result
+    except OpenAIError as e:
+        logger.error("OpenAI API call failed: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to generate reformulated intent")
 
-    return response.choices[0].message.content.strip()
 
-
-# === FastAPI schema ===
+# Request and response models
 class IntentRequest(BaseModel):
     intent: str
     model: Optional[str] = "gpt-4o-mini"
@@ -73,6 +107,13 @@ class ReformulatedResponse(BaseModel):
 
 @app.post("/reformulate", response_model=ReformulatedResponse)
 def api_reformulate(request: IntentRequest):
-    schema_text = get_postgres_schema(POSTGRES_URI)
-    new_intent = reformulate_intent(request.intent, schema_text, model=request.model)
-    return ReformulatedResponse(reformulated_intent=new_intent)
+    logger.info("Received reformulation request: intent='%s', model='%s'", request.intent, request.model)
+    try:
+        schema_text = get_postgres_schema(POSTGRES_URI)
+        new_intent = reformulate_intent(request.intent, schema_text, model=request.model)
+        return ReformulatedResponse(reformulated_intent=new_intent)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.exception("Unexpected error during reformulation")
+        raise HTTPException(status_code=500, detail="Internal server error")
