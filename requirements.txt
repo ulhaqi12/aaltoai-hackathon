@@ -7,3 +7,5 @@ notebook==7.1.2
 langchain-community==0.3.24
 sqlparse==0.5.3
 rich==14.0.0
+langchain-openai==0.3.18
+psycopg2==2.9.10
