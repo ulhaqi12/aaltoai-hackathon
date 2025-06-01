@@ -5,6 +5,12 @@ KHWARIZMI: From Thought to Vision. Our system transforms your natural language p
 
 ---
 
+## **Demo Video**
+
+[Click here to watch the demo on Google Drive](https://drive.google.com/file/d/115j5jt2Ap34fEnMDd9fmzRI5LlRPpda_/view?usp=drive_link)
+
+---
+
 ## **Agents**
 1. **Reformulate Intent Agent** - Refines user queries
 2. **Intent to Query Agent** - Generates SQL from natural language
