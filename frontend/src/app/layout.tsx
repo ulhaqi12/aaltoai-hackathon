@@ -6,8 +6,8 @@ import Animated from "./components/Animated";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Data Visualizer",
-  description: "LLM-powered SQL agent for dynamic data visualization",
+  title: "KHWARIZMI Visualizer",
+  description: "the shortest path from data to decision.",
 };
 
 export default function RootLayout({
