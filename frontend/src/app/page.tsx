@@ -47,19 +47,19 @@ export default function Dashboard() {
           </span>
         </h1>
         <p className="text-base italic text-blue-300 mb-4">
-          the shortest path from data to decision..
+          the shortest path from data to decision.
         </p>
 
         <QueryInput onSubmit={handleQuerySubmit} />
       </div>
 
       {/* Layout */}
-      <div className="flex flex-col md:flex-row gap-6 w-full flex-1">
+      <div className="flex flex-col md:flex-row gap-6 w-full flex-1 min-h-0">
         {/* Left: Reports */}
-        <div className="md:flex-1 bg-white bg-opacity-10 rounded-md p-4 flex flex-col">
+        <div className="md:flex-1 flex flex-col bg-white bg-opacity-10 rounded-md p-4 min-h-0">
           <h2 className="text-xl font-semibold mb-2">Reports</h2>
           {loading ? (
-            <div className="flex flex-col items-center justify-center flex-1 gap-2 transition-opacity animate-fade-in text-yellow-100">
+            <div className="flex-1 flex flex-col items-center justify-center gap-2 text-white animate-fade-in">
               <ArrowPathIcon className="h-6 w-6 animate-spin" />
               <p className="text-sm italic">Generating report and charts...</p>
               <p className="text-xs text-yellow-300 opacity-75">
@@ -84,10 +84,10 @@ export default function Dashboard() {
         </div>
 
         {/* Charts Section */}
-        <div className="md:flex-1 flex flex-col gap-6 bg-white bg-opacity-10 rounded-md p-4">
+        <div className="md:flex-1 flex flex-col bg-white bg-opacity-10 rounded-md p-4 min-h-0">
           <h2 className="text-xl font-semibold mb-2">Charts</h2>
           {loading ? (
-            <div className="flex flex-col items-center justify-center gap-2 text-white animate-fade-in">
+            <div className="flex-1 flex flex-col items-center justify-center gap-2 text-white animate-fade-in">
               <ArrowPathIcon className="h-6 w-6 animate-spin" />
               <p className="text-sm italic">Drawing data... hang tight.</p>
               <p className="text-xs text-yellow-200 opacity-80">
