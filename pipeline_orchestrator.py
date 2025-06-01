@@ -95,30 +95,26 @@ class ReportPipelineOrchestrator:
     
     async def run_full_pipeline(self, user_intent: str) -> Dict[str, Any]:
         """Run the complete pipeline: Intent -> Reformulate -> SQL -> Plots -> Report"""
-        print(f"🚀 Starting pipeline for: '{user_intent}'")
+        print(f"Starting pipeline for: '{user_intent}'")
         
-        # Step 1: Reformulate the intent
-        print("📝 Step 1: Reformulating intent...")
+        print("Step 1: Reformulating intent...")
         reformulated_intent = await self.reformulate_intent(user_intent)
         print(f"   Original: {user_intent}")
         print(f"   Reformulated: {reformulated_intent}")
         
-        # Step 2: Generate SQL query
-        print("🔍 Step 2: Generating SQL query...")
+        print("Step 2: Generating SQL query...")
         sql_query = await self.generate_sql_query(reformulated_intent)
         if not sql_query:
             return {"error": "Failed to generate SQL query", "step": "intent-to-query"}
         print(f"   SQL: {sql_query}")
         
-        # Step 3: Generate plots
-        print("📊 Step 3: Generating plots...")
+        print("Step 3: Generating plots...")
         plots = await self.generate_plots(sql_query, reformulated_intent)
         if not plots:
             return {"error": "Failed to generate plots", "step": "query-to-plots"}
         print(f"   Generated {len(plots)} plots")
         
-        # Step 4: Generate report
-        print("📄 Step 4: Generating report...")
+        print("Step 4: Generating report...")
         html_report = await self.generate_report(user_intent, reformulated_intent, sql_query, plots)
         if not html_report:
             return {"error": "Failed to generate report", "step": "api-to-report"}
@@ -128,7 +124,7 @@ class ReportPipelineOrchestrator:
         with open(report_filename, 'w', encoding='utf-8') as f:
             f.write(html_report)
         
-        print(f"✅ Pipeline completed! Report saved as: {report_filename}")
+        print(f"Pipeline completed! Report saved as: {report_filename}")
         
         return {
             "success": True,

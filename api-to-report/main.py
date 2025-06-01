@@ -79,9 +79,6 @@ async def generate_report(request: ReportRequest):
         logger.info(request.image_urls)
         image_urls = [url.replace("localhost", "minio") for url in request.image_urls if url]
         logger.info(image_urls)
-        # if image_urls:
-        #     logger.info(f"Appending {len(request.image_urls)} image URLs to plots")
-        #     plots.extend([f'<img src="{url}" style="max-width:100%">' for url in request.image_urls])
 
         query_for_analysis = request.reformulated_query or request.original_query
         logger.info("Generating report content...")

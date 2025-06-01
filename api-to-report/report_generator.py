@@ -111,7 +111,7 @@ class ReportGenerator:
                     })
 
             except Exception as e:
-                print(f"⚠️ Failed to download or read image {url}: {e}")
+                print(f"Failed to download or read image {url}: {e}")
 
         return image_blobs, temp_files
 
@@ -123,7 +123,6 @@ class ReportGenerator:
         plots: List[str],
         image_urls: List[str]
     ) -> Tuple[str, List[str]]:
-        # Summary and metadata
         data_summary = self._prepare_data_summary(sql_results)
         plot_metadata = self._get_plot_metadata(plots, image_urls)
 
@@ -168,8 +167,6 @@ class ReportGenerator:
         
         logging.info("After truncaiton len: " + str(len(truncated_text)))
         
-        # logging.info("image blobs:" + str(len(image_blobs)))
-        # logging.info(type(image_blobs))
 
         # Final payload to LLM
         message_content = [{"type": "text", "text": truncated_text}] #+ image_blobs

@@ -14,9 +14,9 @@ response = requests.post(url, json=payload)
 # Check and print response
 if response.status_code == 200:
     data = response.json()
-    print("✅ Response:")
+    print("Response:")
     print("Answer:", data.get("answer"))
     print("SQL Query:", data.get("sql_query"))
 else:
-    print(f"❌ Request failed with status {response.status_code}")
+    print(f"Request failed with status {response.status_code}")
     print("Response body:", response.text)

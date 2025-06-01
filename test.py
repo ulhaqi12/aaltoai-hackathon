@@ -32,10 +32,10 @@ intents = [
 
 # Send each query to the API
 for idx, intent in enumerate(intents, 1):
-    print(f"▶️ Sending intent {idx}: {intent}")
+    print(f"▶Sending intent {idx}: {intent}")
     payload = {
         "intent": intent,
-        "model": "gpt-4o"
+        "model": "gpt-4o-mini",
     }
 
     response = requests.post(url, json=payload)
@@ -47,12 +47,12 @@ for idx, intent in enumerate(intents, 1):
             filename = f"report_{idx:02d}.html"
             with open(filename, "w", encoding="utf-8") as f:
                 f.write(html_content)
-            print(f"✅ Report {idx} saved to {filename}")
+            print(f"Report {idx} saved to {filename}")
             webbrowser.open(filename)
             time.sleep(1)  # Delay to avoid too many tabs at once
         else:
-            print(f"❌ Report {idx} generation failed:", data)
+            print(f"Report {idx} generation failed:", data)
     else:
-        print(f"❌ Request {idx} failed with status {response.status_code}")
+        print(f"Request {idx} failed with status {response.status_code}")
         print(response.text)
     break

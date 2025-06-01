@@ -15,18 +15,14 @@ load_dotenv()
 from fastapi.middleware.cors import CORSMiddleware
 
 
-# -----------------------------
-# Configure Logging
-# -----------------------------
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
 )
 logger = logging.getLogger("main-gateway")
 
-# -----------------------------
-# FastAPI App
-# -----------------------------
+
 app = FastAPI(title="Report Generation Pipeline API")
 
 app.add_middleware(
@@ -48,9 +44,6 @@ class PipelineResponse(BaseModel):
     plots: List[str]
     html_report: str
 
-# -----------------------------
-# Orchestrator Class
-# -----------------------------
 class ReportPipelineOrchestrator:
     def __init__(self):
         self.reformulate_url = "http://reformulate-intent:8071"
@@ -135,9 +128,6 @@ class ReportPipelineOrchestrator:
                 logger.error(f"Error generating report: {e}")
                 return None
 
-# -----------------------------
-# Main API Endpoint
-# -----------------------------
 @app.post("/pipeline/", response_model=PipelineResponse)
 async def run_pipeline(request: PipelineRequest):
     logger.info(f"Pipeline triggered with intent: {request.intent}")
