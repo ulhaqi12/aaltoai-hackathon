@@ -2,21 +2,23 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { cn } from "@/lib/utils";
+import { cn } from '../lib/utils';
 
 function Beam({ index }: { index: number }) {
   const flag = index % 8 === 0;
   return (
     <div
-      className={cn("h-full animate-meteor", {
-        "[--duration:7s]": flag,
-        "[--duration:11s]": !flag,
-      })}
-      style={{
-        width: "6px",
-        transform: "translateY(-20%)",
-        "--delay": `${index * 0.5}s`,
-      }}
+      className={cn(
+        "h-full animate-meteor",
+        flag ? "[--duration:7s]" : "[--duration:11s]"
+      )}
+      style={
+        {
+          width: "6px",
+          transform: "translateY(-20%)",
+          "--delay": `${index * 0.5}s`,
+        } as React.CSSProperties
+      }
     >
       <div
         style={{
