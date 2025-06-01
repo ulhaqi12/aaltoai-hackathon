@@ -56,35 +56,24 @@ MINIO_ENDPOINT=http://minio:9000
 
 With Docker:
 ```bash
-docker-compose up -d
-```
-
-For development:
-```bash
-pip install -r requirements.txt
+docker-compose up --build
 ```
 ---
 
 ## Usage
 
-Website: (Coming Soon)
+Once the containers are up, open your browser and navigate to:
 
-API endpoint: `http://localhost:8074`
+Website: http://localhost:3000
 
-Example:
-```bash
-curl -X POST http://localhost:8074/pipeline \
-  -H "Content-Type: application/json" \
-  -d '{"intent": "Show me the top 10 best-selling products", "model": "gpt-4o-mini"}'
-```
+The frontend React app will be available there.
+
 ---
 
 ## **Example Queries**
 
 - "Top 10 best-selling products by quantity sold"
 - "Total sales by customer for top 10 customers"
-- "Monthly sales trends from 1996 to 1998"
-- "Employees with most orders and their sales volume"
 
 ---
 
