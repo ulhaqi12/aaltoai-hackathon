@@ -65,6 +65,7 @@ docker-compose up --build
 Once the containers are up, open your browser and navigate to:
 
 Website: http://localhost:3000
+Hosted: http://34.55.56.171:3000
 
 The frontend React app will be available there.
 
