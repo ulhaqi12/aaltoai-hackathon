@@ -128,18 +128,18 @@ class ReportGenerator:
         plot_metadata = self._get_plot_metadata(plots, image_urls)
 
         input_text = f"""
-Original Query: {original_query}
+        Original Query: {original_query}
 
-Data Summary:
-{data_summary}
+        Data Summary:
+        {data_summary}
 
-Available Visualizations:
-{json.dumps(plot_metadata, indent=2)}
+        Available Visualizations:
+        {json.dumps(plot_metadata, indent=2)}
 
-Please generate a comprehensive report analyzing this data and answering the original query.
-Reference the figures by their figure numbers when discussing insights from the visualizations and images.
-Include specific metrics, trends, and actionable insights.
-"""
+        Please generate a comprehensive report analyzing this data and answering the original query.
+        Reference the figures by their figure numbers when discussing insights from the visualizations and images.
+        Include specific metrics, trends, and actionable insights.
+        """
 
         logging.info("original len: " + str(len(input_text)))
         MAX_CHARS = 100000 * 3  # Approx 400,000 characters (~128K token context)
@@ -206,15 +206,6 @@ Include specific metrics, trends, and actionable insights.
             <div class="container">
                 <div class="report-content">{html_report}</div>
         """
-
-        for i, plot_html in enumerate(plots):
-            html_content += f"""
-                <div class="plot-container">
-                    <h3 style="text-align: center;">Figure {i + 1}</h3>
-                    {plot_html}
-                </div>
-            """
-
         html_content += """
                 <div class="footer">
                     <p>Report generated using AI-based analysis pipeline.</p>
