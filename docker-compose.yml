@@ -9,8 +9,8 @@ services:
     volumes:
       - postgresql_bin:/usr/lib/postgresql
       - postgresql_data:/var/lib/postgresql/data
-      # - ./db-northdwind/northwind.sql:/docker-entrypoint-initdb.d/northwind.sql
-      - ./db-music/Chinook_PostgreSql.sql:/docker-entrypoint-initdb.d/music.sql
+      - ./db-northdwind/northwind.sql:/docker-entrypoint-initdb.d/northwind.sql
+      #- ./db-music/Chinook_PostgreSql.sql:/docker-entrypoint-initdb.d/music.sql
       - ./files:/files
     ports:
       - 5432:5432
